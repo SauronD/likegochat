@@ -1,47 +1,60 @@
-M0 公共基础（先做）
-目标：先把配置、协议、工具打底。
-参考文件：config.go、logic.go(proto)、connect.go(proto)、task.go(proto)、redis.go、commom.go
-你实现：配置加载、统一错误码、消息结构体、Redis/ID 工具。
-验收：服务能读配置并启动，协议结构可被各模块复用。
-
-M1 用户与鉴权（logic + db）
-目标：先有注册/登录/鉴权闭环。
-参考文件：db.go、user.go(dao)、rpc.go(logic)（Register/Login/CheckAuth/Logout）
-你实现：用户表、密码校验、token session（Redis）。
-验收：注册后可登录，token 可验可注销。
-
-M2 API 网关（HTTP）
-目标：把用户和消息入口开放成 REST。
-参考文件：chat.go(api)、router.go、user.go(handler)、push.go(handler)、rpc.go(api)
-你实现：Gin 路由、中间件鉴权、调用 logic RPC。
-验收：Postman 可完成登录、发消息接口调用。
-
-M3 长连接接入（connect，先 websocket）
-目标：用户能建立长连接并收消息。
-参考文件：connect.go、websocket.go、server.go、channel.go、room.go、bucket.go、operator.go
-你实现：连接建立、按用户入 bucket、房间广播。
-验收：两个浏览器进入同房间可实时互发。
-
-M4 消息异步分发（logic -> redis queue -> task -> connect）
-目标：解耦发送与推送，形成生产级链路。
-参考文件：publish.go、queue.go、push.go(task)、rpc.go(task)、rpc.go(connect)
-你实现：消息入 Redis 队列、task 消费、RPC 推送到 connect。
-验收：API 发消息不直接推连接，task 挂了会堆积，恢复后继续消费。
-
-M5 服务发现与多实例
-目标：支持 connect/logic 水平扩容。
-参考文件：rpc.go(api)、rpc.go(connect)、publish.go(logic)、rpc.go(task)、common.toml(dev)
-你实现：etcd 注册发现、task 动态感知 connect 实例。
-验收：新增 connect 实例无需重启全链路。
-
-M6 TCP 接入（可选加分）
-目标：展示协议设计能力。
-参考文件：server_tcp.go、stickpackage.go
-你实现：TCP 粘包拆包、建连鉴权、与 websocket 共用投递链路。
-验收：TCP 客户端与 WebSocket 客户端能同房间互通。
-
-M7 前端与部署收尾
-目标：能演示、能交付。
-参考文件：site.go、run.sh、reload.sh、gochat_api.ini
-你实现：静态站点、Docker Compose/脚本、一键启动文档。
-验收：新机器按 README 10 分钟跑通。
+likegochat/
+├── cmd/
+│   ├── api/                 # HTTP 网关：注册/登录/发消息等（对外）
+│   │   └── main.go
+│   ├── logic/               # 业务核心：鉴权、路由、消息生产（gRPC server）
+│   │   └── main.go
+│   ├── connect/             # 长连接：WebSocket/TCP（gRPC client 调 logic 验证）
+│   │   └── main.go
+│   └── task/                # 消费队列：Kafka consumer -> 调 connect 投递
+│       └── main.go
+│
+├── internal/
+│   ├── api/                 # api 服务用到的 handler/client（少量文件）
+│   │   ├── handler_auth.go
+│   │   ├── handler_msg.go
+│   │   └── logic_client.go
+│   │
+│   ├── logic/               # logic 服务实现（少量文件）
+│   │   ├── auth.go          # 注册/登录/校验（bcrypt + 单端 session）
+│   │   ├── message.go       # 发消息：写 Kafka（或先内存）
+│   │   ├── rpc.go           # gRPC server 注册
+│   │   └── store.go         # MySQL/Redis 的简单封装（Repo 集中在这）
+│   │
+│   ├── connect/             # connect 服务实现
+│   │   ├── ws.go            # websocket accept/read/write
+│   │   ├── session.go       # 连接会话管理（user->conn）
+│   │   └── logic_client.go  # 调 logic.Verify
+│   │
+│   ├── task/                # task 服务实现
+│   │   ├── consumer.go      # Kafka consumer
+│   │   └── dispatcher.go    # 调 connect 投递
+│   │
+│   └── common/              # 所有服务共享的最小公共代码（控制在少数文件）
+│       ├── config.go        # 读取配置（toml/yaml/flag 任选）
+│       ├── db.go            # MySQL 连接
+│       ├── kafka.go         # Kafka 连接（后期启用）
+│       ├── jwt.go           # JWT（后期启用）
+│       └── proto/           # protoc 生成的 pb.go（统一放这，简单）
+│           └── ...
+│
+├── proto/                   # *.proto 原始定义（auth/message/connect）
+│   ├── auth.proto
+│   ├── logic.proto
+│   └── connect.proto
+│
+├── sql/                     # DDL 与索引（学习项目直接放这最直观）
+│   ├── schema.sql
+│   └── seed.sql
+│
+├── configs/                  # 一套配置即可（dev），别搞 prod/dev 多层
+│   └── dev.toml
+│
+├── scripts/                  # 启动脚本（可选，但很利于面试演示）
+│   ├── up_deps.sh           # 起 mysql/kafka 等（可选）
+│   └── run_all.sh           # 一键启动四个服务
+│
+├── docker-compose.yml        # 可选：依赖（mysql/kafka/etcd/redis）
+├── Makefile                  # proto / build / run
+├── go.mod
+└── README.md                 # 重点写：架构图 + 时序图 + 启动方式

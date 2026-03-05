@@ -1,0 +1,40 @@
+syntax = "proto3";
+
+package auth;
+
+option go_package = "likegochat/internal/common/proto/authpb;authpb";
+
+service AuthService {
+  rpc Register(RegisterRequest) returns (RegisterReply);
+  rpc Login(LoginRequest) returns (LoginReply);
+  rpc Verify(VerifyRequest) returns (VerifyReply);
+}
+
+message RegisterRequest {
+  string username = 1;
+  string password = 2;
+}
+message RegisterReply {
+  int64 user_id = 1;
+}
+
+message LoginRequest {
+  string username = 1;
+  string password = 2;
+  string ip = 3;
+  string user_agent = 4;
+}
+message LoginReply {
+  int64 user_id = 1;
+  string access_token = 2;
+  int64 expires_in = 3;
+}
+
+message VerifyRequest {
+  string access_token = 1;
+}
+message VerifyReply {
+  bool ok = 1;
+  int64 user_id = 2;
+  string reason = 3;
+}
