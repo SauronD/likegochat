@@ -1,5 +1,5 @@
 [mysql]
-dsn = "root:root@tcp(127.0.0.1:3306)/likegochat?parseTime=true&charset=utf8mb4&loc=Local"
+dsn = "root:123456@tcp(127.0.0.1:3306)/likegochat?parseTime=true&charset=utf8mb4&loc=Local"
 
 [logic]
 grpc_addr = "127.0.0.1:50051"

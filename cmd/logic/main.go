@@ -2,10 +2,14 @@ package main
 
 import (
 	"log"
-	"net/http"
+	"net"
+	"time"
 
-	"likegochat/internal/api"
+	"google.golang.org/grpc"
+
 	"likegochat/internal/common"
+	authpb "likegochat/internal/common/proto/authpb"
+	"likegochat/internal/logic"
 )
 
 func main() {
@@ -14,19 +18,42 @@ func main() {
 		log.Fatal(err)
 	}
 
-	client, conn, err := api.NewAuthClient(cfg.API.LogicGRPCAddr)
+	// 连接数据库
+	db, err := common.OpenMySQL(cfg.MySQL.DSN)
+	if err != nil {
+		log.Fatal("open mysql failed:", err)
+	}
+	sqlDB, err := db.DB()
+	if err != nil {
+		log.Fatal("get sql db failed:", err)
+	}
+	defer sqlDB.Close()
+
+	// JWT管理对象
+	jm := &common.JWTManager{
+		Issuer:    cfg.JWT.Issuer,
+		Audience:  cfg.JWT.Audience,
+		Secret:    []byte(cfg.JWT.Secret),
+		AccessTTL: time.Duration(cfg.JWT.AccessTTLSec) * time.Second,
+	}
+
+	// 数据库访问层
+	store := &logic.Store{DB: db}
+
+	// 用户认证服务
+	srv := &logic.AuthServer{
+		Store:      store,
+		JWT:        jm,
+		SessionTTL: time.Duration(cfg.JWT.SessionTTLSec) * time.Second,
+	}
+	// 监听50001，注册服务，运行gRPC server
+	lis, err := net.Listen("tcp", cfg.Logic.GRPCAddr)
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer conn.Close()
+	gs := grpc.NewServer()
+	authpb.RegisterAuthServiceServer(gs, srv)
 
-	h := &api.AuthHandler{Client: client}
-
-	mux := http.NewServeMux()
-	mux.HandleFunc("/register", h.Register)
-	mux.HandleFunc("/login", h.Login)
-	mux.HandleFunc("/me", h.Me)
-
-	log.Println("api http listening on", cfg.API.HTTPAddr)
-	log.Fatal(http.ListenAndServe(cfg.API.HTTPAddr, mux))
+	log.Println("logic grpc listening on", cfg.Logic.GRPCAddr)
+	log.Fatal(gs.Serve(lis))
 }
