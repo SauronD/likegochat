@@ -63,21 +63,13 @@ func (a *AuthServer) Register(ctx context.Context, req *authpb.RegisterRequest) 
 		return nil, errors.New("username/password required")
 	}
 
-	// bcrypt.GenerateFromPassword 会把明文密码转换成不可逆的哈希字符串。
-	//
-	// 这里使用 bcrypt.DefaultCost，适合学习项目和一般场景。
-	// 这样数据库里保存的是 hash，而不是明文密码。
-	//
-	// 举例：
-	// 明文密码：123456
-	// 存库后可能类似：
-	// $2a$10$...
+	// bcrypt哈希算法，内部随机加盐，工作因子10
 	hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, err
 	}
 
-	// 调用 store 把用户写入数据库
+	// 写入数据库
 	id, err := a.Store.CreateUser(ctx, req.Username, string(hash))
 	if err != nil {
 		return nil, err
