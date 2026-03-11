@@ -58,7 +58,7 @@ type AuthServer struct {
 // - 永远不存明文密码
 // - 数据库里存的是 password_hash
 func (a *AuthServer) Register(ctx context.Context, req *authpb.RegisterRequest) (*authpb.RegisterReply, error) {
-	// 最基础的参数校验：用户名和密码不能为空
+	// 用户名和密码不能为空
 	if req.GetUsername() == "" || req.GetPassword() == "" {
 		return nil, errors.New("username/password required")
 	}
@@ -107,11 +107,8 @@ func (a *AuthServer) Login(ctx context.Context, req *authpb.LoginRequest) (*auth
 	// - password_hash
 	u, err := a.Store.GetUserByUsername(ctx, req.Username)
 	if err != nil {
-		// 在 database/sql 里，查不到通常是 sql.ErrNoRows
-		// 在 GORM 里，查不到通常是 gorm.ErrRecordNotFound
+		// 用户名不存在，注意错误返回不要泄露信息
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			// 为了安全，不要告诉前端“用户名不存在”
-			// 统一返回 invalid credentials，避免泄露用户是否存在的信息
 			return nil, errors.New("invalid credentials")
 		}
 		return nil, err
@@ -296,4 +293,10 @@ func (a *AuthServer) Verify(ctx context.Context, req *authpb.VerifyRequest) (*au
 		Ok:     true,
 		UserId: userID,
 	}, nil
+}
+
+// Refresh:JWT的Access Token失效，通过session_id是否合法来刷新Access Token
+func (a *AuthServer) Refresh(ctx context.Context, sessionID string) string {
+
+	return ""
 }

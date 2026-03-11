@@ -23,7 +23,9 @@ func main() {
 	h := &api.AuthHandler{Client: client}
 
 	mux := http.NewServeMux()
+	// 注册功能：POST:username,password
 	mux.HandleFunc("/register", h.Register)
+	// 登录：POST:username,password
 	mux.HandleFunc("/login", h.Login)
 	mux.HandleFunc("/me", h.Me)
 

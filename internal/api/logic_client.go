@@ -8,9 +8,11 @@ import (
 )
 
 func NewAuthClient(addr string) (authpb.AuthServiceClient, *grpc.ClientConn, error) {
-	cc, err := grpc.Dial(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	// grpc明文传输
+	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return nil, nil, err
 	}
-	return authpb.NewAuthServiceClient(cc), cc, nil
+
+	return authpb.NewAuthServiceClient(conn), conn, nil
 }

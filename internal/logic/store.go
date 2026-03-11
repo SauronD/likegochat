@@ -25,8 +25,8 @@ type UserSession struct {
 	ID        int64  `gorm:"column:id;primaryKey;autoIncrement"`
 	UserID    int64  `gorm:"column:user_id"`
 	SessionID string `gorm:"column:session_id"`
-	// 登录时间
-	IssuedAt time.Time `gorm:"column:issued_at"`
+	// 登录时间，注意不能设置为指针，因为gorm插入时会换成NULL，和数据库NOT NULL冲突
+	IssuedAt *time.Time `gorm:"column:issued_at;autoCreateTime"`
 	// session过期时间
 	ExpiresAt time.Time `gorm:"column:expires_at"`
 	// session撤销时间，在数据库中可以为NULL，因此需要用指针来区别
