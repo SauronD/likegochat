@@ -20,13 +20,14 @@ type Config struct {
 		LogicGRPCAddr string `mapstructure:"logic_grpc_addr"`
 	} `mapstructure:"api"`
 
-	JWT struct {
-		Issuer        string `mapstructure:"issuer"`
-		Audience      string `mapstructure:"audience"`
-		Secret        string `mapstructure:"secret"`
-		AccessTTLSec  int64  `mapstructure:"access_ttl_seconds"`
-		SessionTTLSec int64  `mapstructure:"session_ttl_seconds"`
-	} `mapstructure:"jwt"`
+	Redis struct {
+		RedisAddr string `mapstructure:"redis_addr"`
+		Password  string `mapstructure:"redis_password"`
+		DB        int    `mapstructure:"redis_db"`
+	} `mapstructure:"redis"`
+	Session struct {
+		TTLsec int64 `mapstructure:"session_ttl_seconds"`
+	} `mapstructure:"session"`
 }
 
 func LoadConfig(path string) (*Config, error) {

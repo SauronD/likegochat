@@ -2,19 +2,27 @@ package logic
 
 import (
 	"context"
+	"strconv"
 	"time"
 
+	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 )
 
 type Store struct {
+	// mysql数据库连接
 	DB *gorm.DB
+	// redis连接
+	RDB *redis.Client
+	// session在服务器端存活时间
+	SessionTTL time.Duration
 }
 
 type User struct {
-	ID           int64  `gorm:"column:id;primaryKey;autoIncrement"`
-	Username     string `gorm:"column:username"`
-	PasswordHash string `gorm:"column:password_hash"`
+	ID           int64     `gorm:"column:id;primaryKey;autoIncrement"`
+	Username     string    `gorm:"column:username"`
+	PasswordHash string    `gorm:"column:password_hash"`
+	CreatTime    time.Time `gorm:"column:created_at;autoCreateTime"`
 }
 
 func (User) TableName() string {
@@ -65,41 +73,94 @@ func (s *Store) GetUserByUsername(ctx context.Context, username string) (*User, 
 	return u, nil
 }
 
-// 单端登录：撤销旧会话（revoked_at = NULL）
-func (s *Store) RevokeActiveSessions(ctx context.Context, tx *gorm.DB, userID int64) error {
-	now := time.Now()
-	// update user_sessions set revoked_at=now where user_id = userID AND revoked_at IS NULL;
-	return tx.WithContext(ctx).
-		Model(&UserSession{}).
-		Where("user_id = ? AND revoked_at IS NULL", userID).
-		Update("revoked_at", now).Error
+// Redis key:
+// sess:<session_id> -> user_id
+
+func sessionKey(sessionID string) string {
+	return "sess:" + sessionID
 }
 
-func (s *Store) CreateSession(ctx context.Context, tx *gorm.DB, userID int64, sessionID string, expiresAt time.Time, ip, ua string) error {
-	session := &UserSession{
-		UserID:    userID,
-		SessionID: sessionID,
-		ExpiresAt: expiresAt,
-		IP:        ip,
-		UserAgent: ua,
-	}
-	// sql:
-	// insert into user_sessions (username,password_hash) values
-	// (session.UserID,session.SessionID,session.ExpiresAt,session.IP,session.UserAgent);
-	return tx.WithContext(ctx).Create(session).Error
+// Redis key:
+// user_sess:<user_id> -> session_id
+func userSessionKey(userID int64) string {
+	return "user_sess:" + strconv.FormatInt(userID, 10)
 }
 
-// Verify 时检查 session 是否仍有效（解决 JWT 无法撤销的问题）
-func (s *Store) IsSessionActive(ctx context.Context, userID int64, sessionID string) (bool, error) {
-	var cnt int64
-
-	err := s.DB.WithContext(ctx).
-		Model(&UserSession{}).
-		Where("user_id = ? AND session_id = ? AND revoked_at IS NULL AND expires_at > ?", userID, sessionID, time.Now()).
-		Count(&cnt).Error
+// 单端登录：撤销用户的session
+func (s *Store) RevokeActiveSessionForUser(ctx context.Context, userID int64) error {
+	oldSid, err := s.RDB.Get(ctx, userSessionKey(userID)).Result()
 	if err != nil {
-		return false, err
+		if err == redis.Nil {
+			return nil
+		}
+		return err
+	}
+	if err := s.RDB.Del(ctx, sessionKey(oldSid)).Err(); err != nil {
+		return err
+	}
+	if err := s.RDB.Del(ctx, userSessionKey(userID)).Err(); err != nil {
+		return err
+	}
+	return nil
+}
+
+// 创建一个用户的session
+func (s *Store) CreateSession(ctx context.Context, userID int64, sessionID string) error {
+	pipe := s.RDB.Pipeline()
+	pipe.Set(ctx, userSessionKey(userID), sessionID, s.SessionTTL)
+	pipe.Set(ctx, sessionKey(sessionID), strconv.FormatInt(userID, 10), s.SessionTTL)
+	_, err := pipe.Exec(ctx)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// 检查session是否有效
+func (s *Store) IsSessionActive(ctx context.Context, sessionID string) (bool, int64, error) {
+	val, err := s.RDB.Get(ctx, sessionKey(sessionID)).Result()
+	if err != nil {
+		if err == redis.Nil {
+			return false, 0, nil
+		}
+		return false, 0, err
+	}
+	userID, err := strconv.ParseInt(val, 10, 64)
+	if err != nil {
+		return false, 0, err
 	}
 
-	return cnt > 0, nil
+	// 再次查询userID->sessionID是否正确：
+	curSID, err := s.RDB.Get(ctx, userSessionKey(userID)).Result()
+	if err != nil {
+		if err == redis.Nil {
+			return false, 0, nil
+		}
+		return false, 0, err
+	}
+	if curSID != sessionID {
+		return false, 0, nil
+	}
+	return true, userID, nil
+}
+
+// 登出：删除session
+func (s *Store) DeleteSession(ctx context.Context, sessionID string) error {
+
+	val, err := s.RDB.Get(ctx, sessionKey(sessionID)).Result()
+	if err != nil {
+		if err == redis.Nil {
+			return nil
+		}
+		return err
+	}
+	userID, err := strconv.ParseInt(val, 10, 64)
+
+	if err := s.RDB.Del(ctx, sessionKey(sessionID)).Err(); err != nil {
+		return err
+	}
+	if err := s.RDB.Del(ctx, userSessionKey(userID)).Err(); err != nil {
+		return err
+	}
+	return nil
 }

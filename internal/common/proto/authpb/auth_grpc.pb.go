@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.6.1
 // - protoc             v3.12.4
-// source: auth.proto
+// source: proto/auth.proto
 
 package authpb
 
@@ -22,6 +22,7 @@ const (
 	AuthService_Register_FullMethodName = "/auth.AuthService/Register"
 	AuthService_Login_FullMethodName    = "/auth.AuthService/Login"
 	AuthService_Verify_FullMethodName   = "/auth.AuthService/Verify"
+	AuthService_Logout_FullMethodName   = "/auth.AuthService/Logout"
 )
 
 // AuthServiceClient is the client API for AuthService service.
@@ -31,6 +32,7 @@ type AuthServiceClient interface {
 	Register(ctx context.Context, in *RegisterRequest, opts ...grpc.CallOption) (*RegisterReply, error)
 	Login(ctx context.Context, in *LoginRequest, opts ...grpc.CallOption) (*LoginReply, error)
 	Verify(ctx context.Context, in *VerifyRequest, opts ...grpc.CallOption) (*VerifyReply, error)
+	Logout(ctx context.Context, in *LoginRequest, opts ...grpc.CallOption) (*LogoutReply, error)
 }
 
 type authServiceClient struct {
@@ -71,6 +73,16 @@ func (c *authServiceClient) Verify(ctx context.Context, in *VerifyRequest, opts 
 	return out, nil
 }
 
+func (c *authServiceClient) Logout(ctx context.Context, in *LoginRequest, opts ...grpc.CallOption) (*LogoutReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(LogoutReply)
+	err := c.cc.Invoke(ctx, AuthService_Logout_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // AuthServiceServer is the server API for AuthService service.
 // All implementations must embed UnimplementedAuthServiceServer
 // for forward compatibility.
@@ -78,6 +90,7 @@ type AuthServiceServer interface {
 	Register(context.Context, *RegisterRequest) (*RegisterReply, error)
 	Login(context.Context, *LoginRequest) (*LoginReply, error)
 	Verify(context.Context, *VerifyRequest) (*VerifyReply, error)
+	Logout(context.Context, *LoginRequest) (*LogoutReply, error)
 	mustEmbedUnimplementedAuthServiceServer()
 }
 
@@ -96,6 +109,9 @@ func (UnimplementedAuthServiceServer) Login(context.Context, *LoginRequest) (*Lo
 }
 func (UnimplementedAuthServiceServer) Verify(context.Context, *VerifyRequest) (*VerifyReply, error) {
 	return nil, status.Error(codes.Unimplemented, "method Verify not implemented")
+}
+func (UnimplementedAuthServiceServer) Logout(context.Context, *LoginRequest) (*LogoutReply, error) {
+	return nil, status.Error(codes.Unimplemented, "method Logout not implemented")
 }
 func (UnimplementedAuthServiceServer) mustEmbedUnimplementedAuthServiceServer() {}
 func (UnimplementedAuthServiceServer) testEmbeddedByValue()                     {}
@@ -172,6 +188,24 @@ func _AuthService_Verify_Handler(srv interface{}, ctx context.Context, dec func(
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AuthService_Logout_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(LoginRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuthServiceServer).Logout(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AuthService_Logout_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuthServiceServer).Logout(ctx, req.(*LoginRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // AuthService_ServiceDesc is the grpc.ServiceDesc for AuthService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -191,7 +225,11 @@ var AuthService_ServiceDesc = grpc.ServiceDesc{
 			MethodName: "Verify",
 			Handler:    _AuthService_Verify_Handler,
 		},
+		{
+			MethodName: "Logout",
+			Handler:    _AuthService_Logout_Handler,
+		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "auth.proto",
+	Metadata: "proto/auth.proto",
 }

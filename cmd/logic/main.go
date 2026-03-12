@@ -29,22 +29,24 @@ func main() {
 	}
 	defer sqlDB.Close()
 
-	// JWT管理对象
-	jm := &common.JWTManager{
-		Issuer:    cfg.JWT.Issuer,
-		Audience:  cfg.JWT.Audience,
-		Secret:    []byte(cfg.JWT.Secret),
-		AccessTTL: time.Duration(cfg.JWT.AccessTTLSec) * time.Second,
+	// 连接Redis
+	rdb, err := common.OpenRedis(cfg.Redis.RedisAddr, cfg.Redis.Password, cfg.Redis.DB)
+	if err != nil {
+		log.Fatalf("open redis failed:%s", err.Error())
 	}
+	defer rdb.Close()
 
 	// 数据库访问层
-	store := &logic.Store{DB: db}
+	store := &logic.Store{
+		DB:         db,
+		RDB:        rdb,
+		SessionTTL: time.Duration(cfg.Session.TTLsec),
+	}
 
 	// 用户认证服务
 	srv := &logic.AuthServer{
 		Store:      store,
-		JWT:        jm,
-		SessionTTL: time.Duration(cfg.JWT.SessionTTLSec) * time.Second,
+		SessionTTL: time.Duration(cfg.Session.TTLsec) * time.Second,
 	}
 	// 监听50001，注册服务，运行gRPC server
 	lis, err := net.Listen("tcp", cfg.Logic.GRPCAddr)

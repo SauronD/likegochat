@@ -72,8 +72,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 	writeJSON(w, map[string]any{
 		"user_id":      out.UserId,
-		"access_token": out.AccessToken,
-		"expires_in":   out.ExpiresIn,
+		"access_token": out.SessionId,
 	})
 }
 
@@ -87,7 +86,7 @@ func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 	defer cancel()
 
-	out, err := h.Client.Verify(ctx, &authpb.VerifyRequest{AccessToken: token})
+	out, err := h.Client.Verify(ctx, &authpb.VerifyRequest{SessionId: token})
 	if err != nil {
 		http.Error(w, err.Error(), 500)
 		return

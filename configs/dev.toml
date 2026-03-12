@@ -8,9 +8,10 @@ grpc_addr = "127.0.0.1:50051"
 http_addr = "127.0.0.1:8080"
 logic_grpc_addr = "127.0.0.1:50051"
 
-[jwt]
-issuer = "likegochat"
-audience = "likegochat-client"
-secret = "dev-secret-change-me"
-access_ttl_seconds = 900            # 15分钟
+[redis]
+addr = "127.0.0.1:6379"
+password = ""
+db = 0
+
+[session]
 session_ttl_seconds = 2592000       # 30天（服务端 session 过期）

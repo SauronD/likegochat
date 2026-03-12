@@ -3,14 +3,10 @@ package logic
 import (
 	"context"
 	"errors"
-	"strconv"
 	"time"
 
-	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
-	"gorm.io/gorm"
 
-	"likegochat/internal/common"
 	authpb "likegochat/internal/common/proto/authpb"
 )
 
@@ -22,7 +18,7 @@ import (
 type AuthServer struct {
 	authpb.UnimplementedAuthServiceServer
 
-	// Store 负责数据库访问：
+	// Store 负责数据库/Redis访问：
 	// - 查用户
 	// - 创建用户
 	// - 撤销旧 session
@@ -30,20 +26,7 @@ type AuthServer struct {
 	// - 校验 session 是否仍有效
 	Store *Store
 
-	// JWT 是 token 工具：
-	// - 登录成功时生成 access token
-	// - Verify 时解析 token
-	JWT *common.JWTManager
-
-	// SessionTTL 是服务端 session 的有效期。
-	// 注意它和 JWT 的 AccessTTL 不是一回事：
-	//
-	// - AccessTTL：access token 的有效期，通常较短，比如 15 分钟
-	// - SessionTTL：服务端登录会话的有效期，通常较长，比如 30 天
-	//
-	// 为什么要分成两个时间：
-	// - access token 短期，降低泄露风险
-	// - session 较长期，用来表示“这次登录”在服务端是否仍然有效
+	// SessionTTL：服务端登录会话的有效期，通常较长，比如 30 天
 	SessionTTL time.Duration
 }
 
@@ -96,110 +79,9 @@ func (a *AuthServer) Register(ctx context.Context, req *authpb.RegisterRequest) 
 // “旧 session 失效 + 新 session 生效”必须是一个原子操作。
 // 如果其中一步成功、另一部失败，会导致会话状态不一致。
 func (a *AuthServer) Login(ctx context.Context, req *authpb.LoginRequest) (*authpb.LoginReply, error) {
-	// 参数校验：用户名和密码不能为空
-	if req.GetUsername() == "" || req.GetPassword() == "" {
-		return nil, errors.New("username/password required")
-	}
-
-	// 先根据用户名查用户。
-	// 这里查出来的主要信息有：
-	// - user id
-	// - password_hash
-	u, err := a.Store.GetUserByUsername(ctx, req.Username)
-	if err != nil {
-		// 用户名不存在，注意错误返回不要泄露信息
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("invalid credentials")
-		}
-		return nil, err
-	}
-
-	// bcrypt.CompareHashAndPassword 用来验证：
-	// “用户输入的明文密码” 是否能匹配数据库中的 password_hash。
-	//
-	// 注意：这里并不是把输入密码加密后直接字符串比较，
-	// 因为 bcrypt 的 hash 里包含 salt 等信息。
-	if err := bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(req.Password)); err != nil {
-		return nil, errors.New("invalid credentials")
-	}
-
-	// 到这里说明：用户名存在，且密码正确。
-	// 接下来进入“单端登录”的核心逻辑：
-	//
-	// 旧端失效 + 新端生效
-	//
-	// 这两步必须放在同一个事务中，保证原子性。
-	tx := a.Store.DB.Begin()
-	if tx.Error != nil {
-		return nil, tx.Error
-	}
-
-	// defer rollback 是一种常见写法：
-	// - 如果后面任何一步 return 了，事务会被回滚
-	// - 如果后面 Commit 成功，Rollback 不会再真正回滚已提交的事务
-	//
-	// 这样做的好处是：少写很多错误分支的回滚代码。
-	defer tx.Rollback()
-
-	// 第一步：撤销当前用户所有还处于 active 状态的 session
-	//
-	// 这里是“单端登录”的关键：
-	// 新登录时，把旧登录对应的 session 全部标记 revoked。
-	// 以后旧 token 即使签名正确，也会因为 session 已撤销而 Verify 失败。
-	if err := a.Store.RevokeActiveSessions(ctx, tx, u.ID); err != nil {
-		return nil, err
-	}
-
-	// 为这次新登录生成一个全新的 session_id。
-	//
-	// 这个 session_id 会同时：
-	// 1. 存到 user_sessions 表里
-	// 2. 写到 JWT 的 sid(claim) 里
-	//
-	// 这样 Verify 时可以做到：
-	// “JWT 解析通过” + “session 仍有效” 才算真正登录有效。
-	sessionID := uuid.NewString()
-
-	// 计算服务端 session 的过期时间
-	sessionExpires := time.Now().Add(a.SessionTTL)
-
-	// 第二步：创建新的 session
-	if err := a.Store.CreateSession(ctx, tx, u.ID, sessionID, sessionExpires, req.GetIp(), req.GetUserAgent()); err != nil {
-		return nil, err
-	}
-
-	// 提交事务。
-	//
-	// 这里要注意：GORM 的 Commit() 返回的是 *gorm.DB，
-	// 所以要检查的是 .Error
-	if err := tx.Commit().Error; err != nil {
-		return nil, err
-	}
-
-	// 事务提交成功后，说明：
-	// - 旧 session 已撤销
-	// - 新 session 已创建
-	//
-	// 接下来生成 access token（JWT）。
-	//
-	// 这个 token 通常是给客户端后续请求携带的，时间较短。
-	// token 中会包含：
-	// - sub：user_id
-	// - sid：session_id
-	// - exp：过期时间
-	access, expiresIn, err := a.JWT.SignAccessToken(u.ID, sessionID)
-	if err != nil {
-		return nil, err
-	}
-
-	// 返回登录结果：
-	// - user_id
-	// - access_token
-	// - expires_in（秒）
 	return &authpb.LoginReply{
-		UserId:      u.ID,
-		AccessToken: access,
-		ExpiresIn:   expiresIn,
+		UserId:    int64(1),
+		SessionId: "123",
 	}, nil
 }
 
@@ -225,78 +107,10 @@ func (a *AuthServer) Login(ctx context.Context, req *authpb.LoginRequest) (*auth
 // - 主动登出
 // - 服务端强制失效某次登录
 func (a *AuthServer) Verify(ctx context.Context, req *authpb.VerifyRequest) (*authpb.VerifyReply, error) {
-	token := req.GetAccessToken()
-	if token == "" {
-		return &authpb.VerifyReply{
-			Ok:     false,
-			Reason: "missing_token",
-		}, nil
-	}
 
-	// 第一步：解析 JWT。
-	//
-	// 这一步会验证：
-	// - token 格式
-	// - 签名
-	// - exp 是否过期
-	claims, err := a.JWT.ParseAccessToken(token)
-	if err != nil {
-		return &authpb.VerifyReply{
-			Ok:     false,
-			Reason: "invalid_token",
-		}, nil
-	}
-
-	// JWT 标准 claims 里的 sub（subject）这里约定存 user_id。
-	// 它本质是字符串，所以这里要转回 int64。
-	userID, err := strconv.ParseInt(claims.Subject, 10, 64)
-	if err != nil {
-		return &authpb.VerifyReply{
-			Ok:     false,
-			Reason: "bad_sub",
-		}, nil
-	}
-
-	// sid 是我们自定义的 claim，表示这次登录对应的 session_id。
-	// 没有 sid 的 token，无法和服务端 session 对应起来。
-	if claims.SessionID == "" {
-		return &authpb.VerifyReply{
-			Ok:     false,
-			Reason: "missing_sid",
-		}, nil
-	}
-
-	// 第二步：查数据库，确认这个 session 当前仍然有效。
-	//
-	// 这是 JWT + Session 组合的核心：
-	// - JWT 负责“客户端携带凭证”
-	// - Session 负责“服务端控制该凭证是否仍有效”
-	//
-	// 如果用户在别处重新登录，
-	// 旧 session 会被 RevokeActiveSessions 撤销，
-	// 那么这里就会返回 false，实现“踢旧端”。
-	ok, err := a.Store.IsSessionActive(ctx, userID, claims.SessionID)
-	if err != nil {
-		return nil, err
-	}
-	if !ok {
-		return &authpb.VerifyReply{
-			Ok:     false,
-			Reason: "revoked_or_expired",
-		}, nil
-	}
-
-	// 两步都通过，说明：
-	// - token 本身合法
-	// - 这次登录对应的 session 仍然有效
 	return &authpb.VerifyReply{
 		Ok:     true,
-		UserId: userID,
+		UserId: int64(64),
+		Reason: "asd",
 	}, nil
-}
-
-// Refresh:JWT的Access Token失效，通过session_id是否合法来刷新Access Token
-func (a *AuthServer) Refresh(ctx context.Context, sessionID string) string {
-
-	return ""
 }

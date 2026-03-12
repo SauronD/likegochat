@@ -2,12 +2,13 @@ syntax = "proto3";
 
 package auth;
 
-option go_package = "likegochat/internal/common/proto/authpb;authpb";
+option go_package = "./internal/common/proto/authpb;authpb";
 
 service AuthService {
   rpc Register(RegisterRequest) returns (RegisterReply);
   rpc Login(LoginRequest) returns (LoginReply);
   rpc Verify(VerifyRequest) returns (VerifyReply);
+  rpc Logout(LoginRequest) returns (LogoutReply);
 }
 
 message RegisterRequest {
@@ -26,15 +27,22 @@ message LoginRequest {
 }
 message LoginReply {
   int64 user_id = 1;
-  string access_token = 2;
-  int64 expires_in = 3;
+  string session_id = 2;
 }
 
 message VerifyRequest {
-  string access_token = 1;
+  string session_id = 1;
 }
 message VerifyReply {
   bool ok = 1;
   int64 user_id = 2;
   string reason = 3;
+}
+
+message LogoutRequest {
+  string session_id = 1;
+}
+
+message LogoutReply {
+  bool ok = 1;
 }
