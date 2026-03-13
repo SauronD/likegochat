@@ -2,6 +2,7 @@ package logic
 
 import (
 	"context"
+	"errors"
 	"strconv"
 	"time"
 
@@ -73,17 +74,20 @@ func (s *Store) GetUserByUsername(ctx context.Context, username string) (*User, 
 	return u, nil
 }
 
+const redisSessPrefix string = "sess:"
+const redisUserPrefix string = "user_sess:"
+
 // Redis key:
 // sess:<session_id> -> user_id
 
 func sessionKey(sessionID string) string {
-	return "sess:" + sessionID
+	return redisSessPrefix + sessionID
 }
 
 // Redis key:
 // user_sess:<user_id> -> session_id
 func userSessionKey(userID int64) string {
-	return "user_sess:" + strconv.FormatInt(userID, 10)
+	return redisUserPrefix + strconv.FormatInt(userID, 10)
 }
 
 // 单端登录：撤销用户的session
@@ -116,35 +120,64 @@ func (s *Store) CreateSession(ctx context.Context, userID int64, sessionID strin
 	return nil
 }
 
+// 登录时撤销旧session，创建一个新session：
+func (s *Store) RefreshSession(ctx context.Context, userID int64, sessionID string) error {
+	// Lua脚本实现原子操作：
+	// KEYS[1]: user_sid_key (存储 user -> sid)
+	// KEYS[2]: sid_info_prefix (sid -> userId 的前缀)
+	// ARGV[1]: new_sid
+	// ARGV[2]: user_id_str
+	// ARGV[3]: ttl_seconds
+	script := `
+        -- 1. 查找并删除旧的session->userid
+        local oldSid = redis.call("get", KEYS[1])
+        if oldSid then
+            redis.call("del", KEYS[2] .. oldSid)
+        end
+        
+        -- 2. 设置新的 user -> sid 映射
+        redis.call("set", KEYS[1], ARGV[1], "EX", ARGV[3])
+        
+        -- 3. 设置新的 sid -> userId 映射
+        redis.call("set", KEYS[2] .. ARGV[1], ARGV[2], "EX", ARGV[3])
+        
+        return 1
+    `
+	return s.RDB.Eval(ctx, script,
+		[]string{userSessionKey(userID), redisSessPrefix},
+		sessionID,
+		strconv.FormatInt(userID, 10),
+		int(s.SessionTTL.Seconds()),
+	).Err()
+}
+
 // 检查session是否有效
-func (s *Store) IsSessionActive(ctx context.Context, sessionID string) (bool, int64, error) {
+func (s *Store) IsSessionActive(ctx context.Context, sessionID string) (int64, error) {
 	val, err := s.RDB.Get(ctx, sessionKey(sessionID)).Result()
 	if err != nil {
 		if err == redis.Nil {
-			return false, 0, nil
+			return 0, errors.New("invalid session")
 		}
-		return false, 0, err
+		return 0, err
 	}
 	userID, err := strconv.ParseInt(val, 10, 64)
 	if err != nil {
-		return false, 0, err
+		return 0, err
 	}
-
-	// 再次查询userID->sessionID是否正确：
-	curSID, err := s.RDB.Get(ctx, userSessionKey(userID)).Result()
+	activeSessionID, err := s.RDB.Get(ctx, userSessionKey(userID)).Result()
 	if err != nil {
 		if err == redis.Nil {
-			return false, 0, nil
+			return 0, errors.New("session expired or revoked")
 		}
-		return false, 0, err
+		return 0, err
 	}
-	if curSID != sessionID {
-		return false, 0, nil
+	if activeSessionID != sessionID {
+		return 0, errors.New("session revoked by another device")
 	}
-	return true, userID, nil
+	return userID, nil
 }
 
-// 登出：删除session
+// 退出登录：删除session
 func (s *Store) DeleteSession(ctx context.Context, sessionID string) error {
 
 	val, err := s.RDB.Get(ctx, sessionKey(sessionID)).Result()
@@ -155,12 +188,28 @@ func (s *Store) DeleteSession(ctx context.Context, sessionID string) error {
 		return err
 	}
 	userID, err := strconv.ParseInt(val, 10, 64)
+	if err != nil {
+		return err
+	}
+	// 登出的两次删除操作也必须是原子性的：
+	// KEYS[1]: session_id_key
+	// KEYS[2]: user_sid_key
+	// ARGV[1]: 当前请求删除的 sessionID
+	script := `
+        -- 无论如何，先删掉具体的 session 数据
+        redis.call("del", KEYS[1])
+        
+        -- 检查当前 user 指向的 session 是否还是我这个 session
+        -- 如果是，说明没有其他设备抢占，安全删除 user 映射
+        local currentSid = redis.call("get", KEYS[2])
+        if currentSid == ARGV[1] then
+            redis.call("del", KEYS[2])
+        end
+        return 1
+    `
 
-	if err := s.RDB.Del(ctx, sessionKey(sessionID)).Err(); err != nil {
-		return err
-	}
-	if err := s.RDB.Del(ctx, userSessionKey(userID)).Err(); err != nil {
-		return err
-	}
-	return nil
+	return s.RDB.Eval(ctx, script,
+		[]string{sessionKey(sessionID), userSessionKey(userID)},
+		sessionID,
+	).Err()
 }

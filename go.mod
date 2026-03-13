@@ -3,6 +3,7 @@ module likegochat
 go 1.24.0
 
 require (
+	github.com/google/uuid v1.6.0
 	github.com/redis/go-redis/v9 v9.18.0
 	github.com/spf13/viper v1.21.0
 	golang.org/x/crypto v0.48.0

@@ -283,9 +283,7 @@ func (x *VerifyRequest) GetSessionId() string {
 
 type VerifyReply struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Ok            bool                   `protobuf:"varint,1,opt,name=ok,proto3" json:"ok,omitempty"`
-	UserId        int64                  `protobuf:"varint,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	Reason        string                 `protobuf:"bytes,3,opt,name=reason,proto3" json:"reason,omitempty"`
+	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -320,25 +318,11 @@ func (*VerifyReply) Descriptor() ([]byte, []int) {
 	return file_proto_auth_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *VerifyReply) GetOk() bool {
-	if x != nil {
-		return x.Ok
-	}
-	return false
-}
-
 func (x *VerifyReply) GetUserId() int64 {
 	if x != nil {
 		return x.UserId
 	}
 	return 0
-}
-
-func (x *VerifyReply) GetReason() string {
-	if x != nil {
-		return x.Reason
-	}
-	return ""
 }
 
 type LogoutRequest struct {
@@ -452,21 +436,19 @@ const file_proto_auth_proto_rawDesc = "" +
 	"session_id\x18\x02 \x01(\tR\tsessionId\".\n" +
 	"\rVerifyRequest\x12\x1d\n" +
 	"\n" +
-	"session_id\x18\x01 \x01(\tR\tsessionId\"N\n" +
-	"\vVerifyReply\x12\x0e\n" +
-	"\x02ok\x18\x01 \x01(\bR\x02ok\x12\x17\n" +
-	"\auser_id\x18\x02 \x01(\x03R\x06userId\x12\x16\n" +
-	"\x06reason\x18\x03 \x01(\tR\x06reason\".\n" +
+	"session_id\x18\x01 \x01(\tR\tsessionId\"&\n" +
+	"\vVerifyReply\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x03R\x06userId\".\n" +
 	"\rLogoutRequest\x12\x1d\n" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tR\tsessionId\"\x1d\n" +
 	"\vLogoutReply\x12\x0e\n" +
-	"\x02ok\x18\x01 \x01(\bR\x02ok2\xd7\x01\n" +
+	"\x02ok\x18\x01 \x01(\bR\x02ok2\xd8\x01\n" +
 	"\vAuthService\x126\n" +
 	"\bRegister\x12\x15.auth.RegisterRequest\x1a\x13.auth.RegisterReply\x12-\n" +
 	"\x05Login\x12\x12.auth.LoginRequest\x1a\x10.auth.LoginReply\x120\n" +
-	"\x06Verify\x12\x13.auth.VerifyRequest\x1a\x11.auth.VerifyReply\x12/\n" +
-	"\x06Logout\x12\x12.auth.LoginRequest\x1a\x11.auth.LogoutReplyB'Z%./internal/common/proto/authpb;authpbb\x06proto3"
+	"\x06Verify\x12\x13.auth.VerifyRequest\x1a\x11.auth.VerifyReply\x120\n" +
+	"\x06Logout\x12\x13.auth.LogoutRequest\x1a\x11.auth.LogoutReplyB'Z%./internal/common/proto/authpb;authpbb\x06proto3"
 
 var (
 	file_proto_auth_proto_rawDescOnce sync.Once
@@ -495,7 +477,7 @@ var file_proto_auth_proto_depIdxs = []int32{
 	0, // 0: auth.AuthService.Register:input_type -> auth.RegisterRequest
 	2, // 1: auth.AuthService.Login:input_type -> auth.LoginRequest
 	4, // 2: auth.AuthService.Verify:input_type -> auth.VerifyRequest
-	2, // 3: auth.AuthService.Logout:input_type -> auth.LoginRequest
+	6, // 3: auth.AuthService.Logout:input_type -> auth.LogoutRequest
 	1, // 4: auth.AuthService.Register:output_type -> auth.RegisterReply
 	3, // 5: auth.AuthService.Login:output_type -> auth.LoginReply
 	5, // 6: auth.AuthService.Verify:output_type -> auth.VerifyReply

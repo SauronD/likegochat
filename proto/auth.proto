@@ -8,7 +8,7 @@ service AuthService {
   rpc Register(RegisterRequest) returns (RegisterReply);
   rpc Login(LoginRequest) returns (LoginReply);
   rpc Verify(VerifyRequest) returns (VerifyReply);
-  rpc Logout(LoginRequest) returns (LogoutReply);
+  rpc Logout(LogoutRequest) returns (LogoutReply);
 }
 
 message RegisterRequest {
@@ -34,9 +34,7 @@ message VerifyRequest {
   string session_id = 1;
 }
 message VerifyReply {
-  bool ok = 1;
-  int64 user_id = 2;
-  string reason = 3;
+  int64 user_id = 1;
 }
 
 message LogoutRequest {

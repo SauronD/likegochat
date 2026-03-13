@@ -3,9 +3,12 @@ package logic
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
+	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 
 	authpb "likegochat/internal/common/proto/authpb"
 )
@@ -79,9 +82,37 @@ func (a *AuthServer) Register(ctx context.Context, req *authpb.RegisterRequest) 
 // “旧 session 失效 + 新 session 生效”必须是一个原子操作。
 // 如果其中一步成功、另一部失败，会导致会话状态不一致。
 func (a *AuthServer) Login(ctx context.Context, req *authpb.LoginRequest) (*authpb.LoginReply, error) {
+
+	if req.GetUsername() == "" || req.GetPassword() == "" {
+		return nil, errors.New("empty username or password")
+	}
+
+	user := &User{}
+
+	err := a.Store.DB.WithContext(ctx).Where("username = ?", req.Username).Take(user).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errors.New("invalid password or username")
+		}
+		return nil, err
+	}
+	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password))
+	if err != nil {
+		return nil, errors.New("invalid password or username")
+	}
+	// 撤销session和创建新session的操作必须是一个原子操作，否则有如下情况：
+	// 1、一个客户端2正在登录，在删除了旧登录的session，
+	// 2、另外一个客户端1也在登录，并提前一步创建好了session1，Set userid->sessionid1
+	// 3、客户端2删除了userid->sessionid1，导致客户端1瞬间掉线
+	sessionID := uuid.New().String()
+	err = a.Store.RefreshSession(ctx, user.ID, sessionID)
+	if err != nil {
+		return nil, fmt.Errorf("refresh seesion faild:%s", err.Error())
+	}
+
 	return &authpb.LoginReply{
-		UserId:    int64(1),
-		SessionId: "123",
+		UserId:    user.ID,
+		SessionId: sessionID,
 	}, nil
 }
 
@@ -108,9 +139,30 @@ func (a *AuthServer) Login(ctx context.Context, req *authpb.LoginRequest) (*auth
 // - 服务端强制失效某次登录
 func (a *AuthServer) Verify(ctx context.Context, req *authpb.VerifyRequest) (*authpb.VerifyReply, error) {
 
-	return &authpb.VerifyReply{
-		Ok:     true,
-		UserId: int64(64),
-		Reason: "asd",
+	if req.GetSessionId() == "" {
+		return nil, errors.New("empty session")
+	}
+
+	if userID, err := a.Store.IsSessionActive(ctx, req.SessionId); err == nil {
+		return &authpb.VerifyReply{
+			UserId: userID,
+		}, nil
+	} else {
+		return nil, err
+	}
+
+}
+
+func (a *AuthServer) Logout(ctx context.Context, req *authpb.LogoutRequest) (*authpb.LogoutReply, error) {
+	if req.GetSessionId() == "" {
+		return nil, errors.New("empty sessionID")
+	}
+
+	err := a.Store.DeleteSession(ctx, req.SessionId)
+	if err != nil {
+		return nil, err
+	}
+	return &authpb.LogoutReply{
+		Ok: true,
 	}, nil
 }
