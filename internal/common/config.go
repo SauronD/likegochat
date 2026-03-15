@@ -28,6 +28,13 @@ type Config struct {
 	Session struct {
 		TTLsec int64 `mapstructure:"session_ttl_seconds"`
 	} `mapstructure:"session"`
+	Logger struct {
+		LogFilePath    string `mapstructure:"log_file_path"`
+		LogFileSize    int    `mapstructure:"log_file_size"`
+		LogFileBackups int    `mapstructure:"log_file_backups"`
+		LogFileAge     int    `mapstructure:"log_file_age"`
+		LogFileLevel   string `mapstructure:"log_file_level"`
+	} `mapstructure:"logger"`
 }
 
 func LoadConfig(path string) (*Config, error) {

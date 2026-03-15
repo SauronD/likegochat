@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"strings"
 	"time"
 
 	authpb "likegochat/internal/common/proto/authpb"
@@ -76,10 +75,10 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
-	token := extractBearer(r.Header.Get("Authorization"))
+func (h *AuthHandler) Verify(w http.ResponseWriter, r *http.Request) {
+	token := r.Header.Get("Authorization")
 	if token == "" {
-		http.Error(w, "missing bearer token", 401)
+		http.Error(w, "missing sesson id", 401)
 		return
 	}
 
@@ -91,22 +90,8 @@ func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), 500)
 		return
 	}
-	if !out.Ok {
-		http.Error(w, "unauthorized: "+out.Reason, 401)
-		return
-	}
-	writeJSON(w, map[string]any{"user_id": out.UserId})
-}
 
-func extractBearer(h string) string {
-	parts := strings.SplitN(h, " ", 2)
-	if len(parts) != 2 {
-		return ""
-	}
-	if strings.ToLower(parts[0]) != "bearer" {
-		return ""
-	}
-	return strings.TrimSpace(parts[1])
+	writeJSON(w, map[string]any{"user_id": out.UserId})
 }
 
 func writeJSON(w http.ResponseWriter, v any) {

@@ -1,0 +1,18 @@
+syntax = "proto3";
+package connectpb;
+option go_package = "./internal/common/proto/connectpb;connectpb";
+
+service ConnectService {
+    // Task 层调用此方法，调用Connect层向指定用户下发数据
+    rpc PushMsg(PushMsgRequest) returns (PushMsgReply);
+}
+
+message PushMsgRequest {
+    int64 to_user_id = 1;
+    // 序列化后的具体聊天内容，connect层不负责数据的反序列化，反序列化放到终端做
+    bytes payload    = 2; 
+}
+
+message PushMsgReply {
+    bool success = 1;
+}

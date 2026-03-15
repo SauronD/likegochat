@@ -15,3 +15,10 @@ db = 0
 
 [session]
 session_ttl_seconds = 2592000       # 30天（服务端 session 过期）
+
+[logger]
+log_file_path = "./logs/dev.log"
+log_file_size = 10
+log_file_backups = 5
+log_file_age = 7
+log_file_level = "debug"

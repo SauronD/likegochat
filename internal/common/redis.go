@@ -23,5 +23,6 @@ func OpenRedis(addr, password string, db int) (*redis.Client, error) {
 	if err := rdb.Ping(ctx).Err(); err != nil {
 		return nil, err
 	}
+	redis.SetLogger(&RedisZapLogger{})
 	return rdb, nil
 }

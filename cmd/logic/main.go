@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net"
 	"time"
@@ -13,10 +14,15 @@ import (
 )
 
 func main() {
+
 	cfg, err := common.LoadConfig("configs/dev.toml")
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	common.InitLogger(cfg.Logger.LogFilePath, cfg.Logger.LogFileSize, cfg.Logger.LogFileBackups, cfg.Logger.LogFileAge, cfg.Logger.LogFileLevel)
+	// 确保退出前刷入磁盘
+	defer common.Logger.Sync()
 
 	// 连接数据库
 	db, err := common.OpenMySQL(cfg.MySQL.DSN)
@@ -40,20 +46,20 @@ func main() {
 	store := &logic.Store{
 		DB:         db,
 		RDB:        rdb,
-		SessionTTL: time.Duration(cfg.Session.TTLsec),
+		SessionTTL: time.Duration(cfg.Session.TTLsec) * time.Second,
 	}
 
 	// 用户认证服务
 	srv := &logic.AuthServer{
-		Store:      store,
-		SessionTTL: time.Duration(cfg.Session.TTLsec) * time.Second,
+		Store: store,
 	}
+	fmt.Println(srv.Store.SessionTTL)
 	// 监听50001，注册服务，运行gRPC server
 	lis, err := net.Listen("tcp", cfg.Logic.GRPCAddr)
 	if err != nil {
 		log.Fatal(err)
 	}
-	gs := grpc.NewServer()
+	gs := grpc.NewServer(grpc.UnaryInterceptor(common.ZapGrpcLogger()))
 	authpb.RegisterAuthServiceServer(gs, srv)
 
 	log.Println("logic grpc listening on", cfg.Logic.GRPCAddr)

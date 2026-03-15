@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
@@ -28,9 +27,6 @@ type AuthServer struct {
 	// - 创建新 session
 	// - 校验 session 是否仍有效
 	Store *Store
-
-	// SessionTTL：服务端登录会话的有效期，通常较长，比如 30 天
-	SessionTTL time.Duration
 }
 
 // Register 处理注册逻辑。

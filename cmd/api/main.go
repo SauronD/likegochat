@@ -24,10 +24,10 @@ func main() {
 
 	mux := http.NewServeMux()
 	// 注册功能：POST:username,password
-	mux.HandleFunc("/register", h.Register)
+	mux.HandleFunc("/api/register", h.Register)
 	// 登录：POST:username,password
-	mux.HandleFunc("/login", h.Login)
-	mux.HandleFunc("/me", h.Me)
+	mux.HandleFunc("/api/login", h.Login)
+	mux.HandleFunc("/api/verify", h.Verify)
 
 	log.Println("api http listening on", cfg.API.HTTPAddr)
 	log.Fatal(http.ListenAndServe(cfg.API.HTTPAddr, mux))

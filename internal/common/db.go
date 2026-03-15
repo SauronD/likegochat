@@ -5,11 +5,19 @@ import (
 
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
+	gormlogger "gorm.io/gorm/logger"
 )
 
 // 返回*gorm.DB
 func OpenMySQL(dsn string) (*gorm.DB, error) {
-	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
+	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{
+		// 注册到日志
+		Logger: &ZapGormLogger{
+			LogLevel:                  gormlogger.Info, // Info级别会打印所有SQL
+			SlowThreshold:             200 * time.Millisecond,
+			IgnoreRecordNotFoundError: true,
+		},
+	})
 	if err != nil {
 		return nil, err
 	}
