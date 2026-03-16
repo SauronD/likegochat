@@ -36,7 +36,9 @@ type Config struct {
 		LogFileLevel   string `mapstructure:"log_file_level"`
 	} `mapstructure:"logger"`
 	Connect struct {
-		ConnectGRPCAddr string `mapstructure:"connect_grpc_addr"`
+		ConnectGRPCAddr   string `mapstructure:"connect_grpc_addr"`
+		ConnectHTTPAddr   string `mapstructure:"connec_http_addr"`
+		ConnectServerAddr string `mapstructure:"connect_grpc_addr"`
 	} `mapstructure:"connect"`
 }
 

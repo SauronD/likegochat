@@ -26,4 +26,3 @@ log_file_level = "debug"
 [connect]
 connect_grpc_addr = "127.0.0.1:50052"
 connec_http_addr = "127.0.0.1:8081"
-connect_server_addr = "127.0.0.1:9090"

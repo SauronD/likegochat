@@ -11,8 +11,9 @@ import (
 const UserServerKeyPrefix = "user_server:"
 
 type Registry struct {
-	RDB      *redis.Client
-	ServerID string // 例如 "192.168.1.10:9001"
+	RDB *redis.Client
+	// connect节点绑定的地址，用户和task层用这个地址来绑定一个connect节点
+	ServerID string
 }
 
 // RegisterUser 用户上线，绑定物理节点

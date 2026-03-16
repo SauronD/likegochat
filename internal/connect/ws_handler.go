@@ -29,8 +29,9 @@ var upgrader = websocket.Upgrader{
 
 // ServerContext 全局依赖注入容器
 type ServerContext struct {
-	Registry   *Registry
-	AuthClient authpb.AuthServiceClient // Logic层的gRPC客户端
+	Registry *Registry
+	// Logic层的gRPC客户端
+	AuthClient authpb.AuthServiceClient
 }
 
 // Client 封装单个用户的物理长连接
@@ -67,31 +68,31 @@ func (m *ConnectionManager) RemoveClient(userID int64) {
 	}
 }
 
-// ServeWS 处理 HTTP 请求并升级为 WebSocket
-func ServeWS(ctx *ServerContext, w http.ResponseWriter, r *http.Request) {
-	// 1. 提取 Session ID
-	sessionID := r.URL.Query().Get("session_id")
+// ServeWS 处理HTTP请求并升级为WebSocket
+func ServeWS(serverContext *ServerContext, w http.ResponseWriter, r *http.Request) {
+	// 提取 Session ID
+	sessionID := r.Header.Get("Authorization")
 	if sessionID == "" {
-		http.Error(w, "缺少 session_id 参数", http.StatusUnauthorized)
+		http.Error(w, "empty session_id ", http.StatusUnauthorized)
 		return
 	}
 
-	// 2. 跨层鉴权：通过 gRPC 调用 Logic 层
-	rpcCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	// 跨层鉴权：通过gRPC调用Logic层
+	rpcCtx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
 	defer cancel()
-	verifyReply, err := ctx.AuthClient.Verify(rpcCtx, &authpb.VerifyRequest{SessionId: sessionID})
-	if err != nil || verifyReply == nil {
-		log.Printf("Session 鉴权失败: %v", err)
-		http.Error(w, "Token 无效或已过期", http.StatusUnauthorized)
+	verifyReply, err := serverContext.AuthClient.Verify(rpcCtx, &authpb.VerifyRequest{SessionId: sessionID})
+	if err != nil {
+		log.Printf("invalid session: %v", err)
+		http.Error(w, "invalid session", http.StatusUnauthorized)
 		return
 	}
 
 	userID := verifyReply.UserId
 
-	// 3. 鉴权通过，接管底层 TCP 升级为 WebSocket
+	// 鉴权通过，接管底层TCP升级为WebSocket
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Printf("协议升级失败: %v", err)
+		log.Printf("upgrade websocket failed: %v", err)
 		return
 	}
 
@@ -99,14 +100,14 @@ func ServeWS(ctx *ServerContext, w http.ResponseWriter, r *http.Request) {
 		UserID: userID,
 		Conn:   conn,
 		Send:   make(chan []byte, 256),
-		Ctx:    ctx,
+		Ctx:    serverContext,
 	}
 
 	// 4. 加入本机连接池并注册到 Redis
 	DefaultManager.AddClient(userID, client)
-	err = ctx.Registry.RegisterUser(context.Background(), userID)
+	err = serverContext.Registry.RegisterUser(r.Context(), userID)
 	if err != nil {
-		log.Printf("Redis 注册失败: %v", err)
+		log.Printf("Redis注册connect节点%s失败: %v", serverContext.Registry.ServerID, err)
 		DefaultManager.RemoveClient(userID)
 		return
 	}
