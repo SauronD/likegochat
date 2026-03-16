@@ -14,7 +14,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	client, conn, err := api.NewAuthClient(cfg.API.LogicGRPCAddr)
+	client, conn, err := common.NewAuthClient(cfg.API.LogicGRPCAddr)
 	if err != nil {
 		log.Fatal(err)
 	}

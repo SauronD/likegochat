@@ -35,6 +35,9 @@ type Config struct {
 		LogFileAge     int    `mapstructure:"log_file_age"`
 		LogFileLevel   string `mapstructure:"log_file_level"`
 	} `mapstructure:"logger"`
+	Connect struct {
+		ConnectGRPCAddr string `mapstructure:"connect_grpc_addr"`
+	} `mapstructure:"connect"`
 }
 
 func LoadConfig(path string) (*Config, error) {
