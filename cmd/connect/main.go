@@ -1,8 +1,6 @@
 package main
 
 import (
-	"context"
-	"flag"
 	"log"
 	"net"
 	"net/http"
@@ -10,45 +8,36 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/redis/go-redis/v9"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 
-	"likegochat/internal/common/proto/authpb"
+	"likegochat/internal/common"
 	"likegochat/internal/common/proto/connectpb"
 	"likegochat/internal/connect"
 )
 
-var (
-	httpPort  = flag.String("http_port", ":8001", "对外提供 WebSocket 服务的端口")
-	grpcPort  = flag.String("grpc_port", ":9001", "对内接收 Task 层推送的 gRPC 端口")
-	redisAddr = flag.String("redis_addr", "127.0.0.1:6379", "Redis 缓存地址")
-	serverID  = flag.String("server_id", "127.0.0.1:9001", "当前 Connect 节点的网络寻址 ID")
-	logicAddr = flag.String("logic_addr", "127.0.0.1:9000", "Logic 层的 gRPC 接口地址")
-)
-
 func main() {
-	flag.Parse()
-
+	cfg, err := common.LoadConfig("configs/dev.toml")
+	if err != nil {
+		log.Fatal(err)
+	}
 	// 1. 初始化 Redis 客户端
-	rdb := redis.NewClient(&redis.Options{Addr: *redisAddr})
-	if err := rdb.Ping(context.Background()).Err(); err != nil {
+	rdb, err := common.OpenRedis(cfg.Redis.RedisAddr, cfg.Redis.Password, cfg.Redis.DB)
+	if err != nil {
 		log.Fatalf("Redis 连接失败: %v", err)
 	}
 
 	// 2. 初始化路由注册器
 	registry := &connect.Registry{
 		RDB:      rdb,
-		ServerID: *serverID,
+		ServerID: cfg.Connect.ConnectServerAddr,
 	}
 
 	// 3. 建立连接至 Logic 层的 gRPC 客户端 (用于鉴权)
-	logicConn, err := grpc.Dial(*logicAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	authClient, logicConn, err := common.NewAuthClient(cfg.Logic.GRPCAddr)
 	if err != nil {
-		log.Fatalf("无法连接至 Logic 层: %v", err)
+		log.Fatalf("connect logic grpc server failed:%s", err.Error())
 	}
 	defer logicConn.Close()
-	authClient := authpb.NewAuthServiceClient(logicConn)
 
 	// 4. 组装全局依赖上下文
 	serverCtx := &connect.ServerContext{
@@ -58,14 +47,14 @@ func main() {
 
 	// 5. 启动接收 Task 层调用的 gRPC 服务
 	go func() {
-		lis, err := net.Listen("tcp", *grpcPort)
+		lis, err := net.Listen("tcp", cfg.Connect.ConnectGRPCAddr)
 		if err != nil {
 			log.Fatalf("gRPC 端口监听失败: %v", err)
 		}
 		grpcServer := grpc.NewServer()
 		connectpb.RegisterConnectServiceServer(grpcServer, &connect.GrpcServer{})
 
-		log.Printf("Connect 层内部 gRPC 服务已启动，监听 %s", *grpcPort)
+		log.Printf("Connect 层内部 gRPC 服务已启动，监听 %s", cfg.Connect.ConnectGRPCAddr)
 		if err := grpcServer.Serve(lis); err != nil {
 			log.Fatalf("gRPC 服务运行失败: %v", err)
 		}
@@ -76,8 +65,8 @@ func main() {
 		http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 			connect.ServeWS(serverCtx, w, r)
 		})
-		log.Printf("Connect 层外部 WebSocket 服务已启动，监听 %s", *httpPort)
-		if err := http.ListenAndServe(*httpPort, nil); err != nil {
+		log.Printf("Connect 层外部 WebSocket 服务已启动，监听 %s", cfg.Connect.ConnectHTTPAddr)
+		if err := http.ListenAndServe(cfg.Connect.ConnectHTTPAddr, nil); err != nil {
 			log.Fatalf("HTTP 服务运行失败: %v", err)
 		}
 	}()
