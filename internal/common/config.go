@@ -40,6 +40,11 @@ type Config struct {
 		ConnectHTTPAddr   string `mapstructure:"connec_http_addr"`
 		ConnectServerAddr string `mapstructure:"connect_grpc_addr"`
 	} `mapstructure:"connect"`
+	Kafka struct {
+		KafkaBrokers  []string `mapstructure:"kafka_brokers"`
+		ConsumerGroup string   `mapstructure:"kafka__consumer_group"`
+		ChatTopic     string   `mapstructure:"kafka__chat_topic"`
+	} `mapstructure:"kafka"`
 }
 
 func LoadConfig(path string) (*Config, error) {

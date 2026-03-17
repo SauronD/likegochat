@@ -1,27 +1,30 @@
 syntax = "proto3";
 package chatpb;
+option go_package = "./internal/common/proto/chatpb";
 
-
-option go_package = "./internal/common/proto/chatpb;chatpb";
-
-// Message 定义了点对点（单聊）核心消息的数据结构
-message Message {
-
-    int64 from_user_id = 1;   
-    int64 to_user_id   = 2;
-    
-    // 消息类型枚举值（例如：1代表纯文本，2代表图片URL，3代表语音文件路径）
-    int32 msg_type     = 3; 
-    
-    // 消息的具体负载内容
-    string content     = 4;
-    int64 timestamp    = 5;
+service ChatService {
+  // 发送单聊消息
+  rpc SendMessage(SendMessageRequest) returns (SendMessageReply);
 }
 
-// Control 定义了系统级的控制指令结构，通常由服务器主动下发给客户端
-message Control {
-    // 控制动作枚举值（例如：1代表踢出下线，2代表要求客户端强制拉取离线消息）
-    int32 action  = 1; 
-    int64 user_id = 2;
-    string reason = 3;
+message SendMessageRequest {
+  int64 from_user_id = 1; // 发送方ID（由API层解析Token后填入）
+  int64 to_user_id = 2; // 接收方ID
+  bytes content = 3; // 消息负载
+  int32 msg_type = 4; // 消息类型（如 1:文本, 2:图片）
+}
+
+message SendMessageReply {
+  int64 msg_id = 1; // Logic层生成的全局唯一消息ID
+  int64 timestamp = 2; // 服务器接收时间戳
+}
+
+// 这是存入 Kafka 和 MySQL 的底层物理消息模型
+message Message {
+  int64 msg_id = 1;
+  int64 from_user_id = 2;
+  int64 to_user_id = 3;
+  bytes content = 4;
+  int32 msg_type = 5;
+  int64 create_time = 6;
 }

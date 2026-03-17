@@ -108,7 +108,7 @@ func ZapGrpcLogger() grpc.UnaryServerInterceptor {
 	}
 }
 
-// --- GORM 日志适配器 ---
+// GORM 日志记录，实现gorm.logger.Interface
 type ZapGormLogger struct {
 	LogLevel                  logger.LogLevel
 	SlowThreshold             time.Duration

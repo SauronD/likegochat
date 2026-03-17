@@ -45,7 +45,7 @@ func main() {
 		AuthClient: authClient,
 	}
 
-	// 5. 启动接收 Task 层调用的 gRPC 服务
+	// 5. 启动接收Task层调用的gRPC server端
 	go func() {
 		lis, err := net.Listen("tcp", cfg.Connect.ConnectGRPCAddr)
 		if err != nil {

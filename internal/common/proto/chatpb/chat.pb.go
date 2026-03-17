@@ -21,23 +21,142 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// Message 定义了点对点（单聊）核心消息的数据结构
+type SendMessageRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	FromUserId    int64                  `protobuf:"varint,1,opt,name=from_user_id,json=fromUserId,proto3" json:"from_user_id,omitempty"` // 发送方ID（由API层解析Token后填入）
+	ToUserId      int64                  `protobuf:"varint,2,opt,name=to_user_id,json=toUserId,proto3" json:"to_user_id,omitempty"`       // 接收方ID
+	Content       []byte                 `protobuf:"bytes,3,opt,name=content,proto3" json:"content,omitempty"`                            // 消息负载
+	MsgType       int32                  `protobuf:"varint,4,opt,name=msg_type,json=msgType,proto3" json:"msg_type,omitempty"`            // 消息类型（如 1:文本, 2:图片）
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SendMessageRequest) Reset() {
+	*x = SendMessageRequest{}
+	mi := &file_proto_chat_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SendMessageRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SendMessageRequest) ProtoMessage() {}
+
+func (x *SendMessageRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_chat_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SendMessageRequest.ProtoReflect.Descriptor instead.
+func (*SendMessageRequest) Descriptor() ([]byte, []int) {
+	return file_proto_chat_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *SendMessageRequest) GetFromUserId() int64 {
+	if x != nil {
+		return x.FromUserId
+	}
+	return 0
+}
+
+func (x *SendMessageRequest) GetToUserId() int64 {
+	if x != nil {
+		return x.ToUserId
+	}
+	return 0
+}
+
+func (x *SendMessageRequest) GetContent() []byte {
+	if x != nil {
+		return x.Content
+	}
+	return nil
+}
+
+func (x *SendMessageRequest) GetMsgType() int32 {
+	if x != nil {
+		return x.MsgType
+	}
+	return 0
+}
+
+type SendMessageReply struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	MsgId         int64                  `protobuf:"varint,1,opt,name=msg_id,json=msgId,proto3" json:"msg_id,omitempty"` // Logic层生成的全局唯一消息ID
+	Timestamp     int64                  `protobuf:"varint,2,opt,name=timestamp,proto3" json:"timestamp,omitempty"`      // 服务器接收时间戳
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SendMessageReply) Reset() {
+	*x = SendMessageReply{}
+	mi := &file_proto_chat_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SendMessageReply) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SendMessageReply) ProtoMessage() {}
+
+func (x *SendMessageReply) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_chat_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SendMessageReply.ProtoReflect.Descriptor instead.
+func (*SendMessageReply) Descriptor() ([]byte, []int) {
+	return file_proto_chat_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *SendMessageReply) GetMsgId() int64 {
+	if x != nil {
+		return x.MsgId
+	}
+	return 0
+}
+
+func (x *SendMessageReply) GetTimestamp() int64 {
+	if x != nil {
+		return x.Timestamp
+	}
+	return 0
+}
+
+// 这是存入 Kafka 和 MySQL 的底层物理消息模型
 type Message struct {
-	state      protoimpl.MessageState `protogen:"open.v1"`
-	FromUserId int64                  `protobuf:"varint,1,opt,name=from_user_id,json=fromUserId,proto3" json:"from_user_id,omitempty"`
-	ToUserId   int64                  `protobuf:"varint,2,opt,name=to_user_id,json=toUserId,proto3" json:"to_user_id,omitempty"`
-	// 消息类型枚举值（例如：1代表纯文本，2代表图片URL，3代表语音文件路径）
-	MsgType int32 `protobuf:"varint,3,opt,name=msg_type,json=msgType,proto3" json:"msg_type,omitempty"`
-	// 消息的具体负载内容
-	Content       string `protobuf:"bytes,4,opt,name=content,proto3" json:"content,omitempty"`
-	Timestamp     int64  `protobuf:"varint,5,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	MsgId         int64                  `protobuf:"varint,1,opt,name=msg_id,json=msgId,proto3" json:"msg_id,omitempty"`
+	FromUserId    int64                  `protobuf:"varint,2,opt,name=from_user_id,json=fromUserId,proto3" json:"from_user_id,omitempty"`
+	ToUserId      int64                  `protobuf:"varint,3,opt,name=to_user_id,json=toUserId,proto3" json:"to_user_id,omitempty"`
+	Content       []byte                 `protobuf:"bytes,4,opt,name=content,proto3" json:"content,omitempty"`
+	MsgType       int32                  `protobuf:"varint,5,opt,name=msg_type,json=msgType,proto3" json:"msg_type,omitempty"`
+	CreateTime    int64                  `protobuf:"varint,6,opt,name=create_time,json=createTime,proto3" json:"create_time,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Message) Reset() {
 	*x = Message{}
-	mi := &file_proto_chat_proto_msgTypes[0]
+	mi := &file_proto_chat_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -49,7 +168,7 @@ func (x *Message) String() string {
 func (*Message) ProtoMessage() {}
 
 func (x *Message) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_chat_proto_msgTypes[0]
+	mi := &file_proto_chat_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -62,7 +181,14 @@ func (x *Message) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Message.ProtoReflect.Descriptor instead.
 func (*Message) Descriptor() ([]byte, []int) {
-	return file_proto_chat_proto_rawDescGZIP(), []int{0}
+	return file_proto_chat_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *Message) GetMsgId() int64 {
+	if x != nil {
+		return x.MsgId
+	}
+	return 0
 }
 
 func (x *Message) GetFromUserId() int64 {
@@ -79,6 +205,13 @@ func (x *Message) GetToUserId() int64 {
 	return 0
 }
 
+func (x *Message) GetContent() []byte {
+	if x != nil {
+		return x.Content
+	}
+	return nil
+}
+
 func (x *Message) GetMsgType() int32 {
 	if x != nil {
 		return x.MsgType
@@ -86,99 +219,40 @@ func (x *Message) GetMsgType() int32 {
 	return 0
 }
 
-func (x *Message) GetContent() string {
+func (x *Message) GetCreateTime() int64 {
 	if x != nil {
-		return x.Content
-	}
-	return ""
-}
-
-func (x *Message) GetTimestamp() int64 {
-	if x != nil {
-		return x.Timestamp
+		return x.CreateTime
 	}
 	return 0
-}
-
-// Control 定义了系统级的控制指令结构，通常由服务器主动下发给客户端
-type Control struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// 控制动作枚举值（例如：1代表踢出下线，2代表要求客户端强制拉取离线消息）
-	Action        int32  `protobuf:"varint,1,opt,name=action,proto3" json:"action,omitempty"`
-	UserId        int64  `protobuf:"varint,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	Reason        string `protobuf:"bytes,3,opt,name=reason,proto3" json:"reason,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *Control) Reset() {
-	*x = Control{}
-	mi := &file_proto_chat_proto_msgTypes[1]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *Control) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*Control) ProtoMessage() {}
-
-func (x *Control) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_chat_proto_msgTypes[1]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use Control.ProtoReflect.Descriptor instead.
-func (*Control) Descriptor() ([]byte, []int) {
-	return file_proto_chat_proto_rawDescGZIP(), []int{1}
-}
-
-func (x *Control) GetAction() int32 {
-	if x != nil {
-		return x.Action
-	}
-	return 0
-}
-
-func (x *Control) GetUserId() int64 {
-	if x != nil {
-		return x.UserId
-	}
-	return 0
-}
-
-func (x *Control) GetReason() string {
-	if x != nil {
-		return x.Reason
-	}
-	return ""
 }
 
 var File_proto_chat_proto protoreflect.FileDescriptor
 
 const file_proto_chat_proto_rawDesc = "" +
 	"\n" +
-	"\x10proto/chat.proto\x12\x06chatpb\"\x9c\x01\n" +
-	"\aMessage\x12 \n" +
+	"\x10proto/chat.proto\x12\x06chatpb\"\x89\x01\n" +
+	"\x12SendMessageRequest\x12 \n" +
 	"\ffrom_user_id\x18\x01 \x01(\x03R\n" +
 	"fromUserId\x12\x1c\n" +
 	"\n" +
-	"to_user_id\x18\x02 \x01(\x03R\btoUserId\x12\x19\n" +
-	"\bmsg_type\x18\x03 \x01(\x05R\amsgType\x12\x18\n" +
-	"\acontent\x18\x04 \x01(\tR\acontent\x12\x1c\n" +
-	"\ttimestamp\x18\x05 \x01(\x03R\ttimestamp\"R\n" +
-	"\aControl\x12\x16\n" +
-	"\x06action\x18\x01 \x01(\x05R\x06action\x12\x17\n" +
-	"\auser_id\x18\x02 \x01(\x03R\x06userId\x12\x16\n" +
-	"\x06reason\x18\x03 \x01(\tR\x06reasonB'Z%./internal/common/proto/chatpb;chatpbb\x06proto3"
+	"to_user_id\x18\x02 \x01(\x03R\btoUserId\x12\x18\n" +
+	"\acontent\x18\x03 \x01(\fR\acontent\x12\x19\n" +
+	"\bmsg_type\x18\x04 \x01(\x05R\amsgType\"G\n" +
+	"\x10SendMessageReply\x12\x15\n" +
+	"\x06msg_id\x18\x01 \x01(\x03R\x05msgId\x12\x1c\n" +
+	"\ttimestamp\x18\x02 \x01(\x03R\ttimestamp\"\xb6\x01\n" +
+	"\aMessage\x12\x15\n" +
+	"\x06msg_id\x18\x01 \x01(\x03R\x05msgId\x12 \n" +
+	"\ffrom_user_id\x18\x02 \x01(\x03R\n" +
+	"fromUserId\x12\x1c\n" +
+	"\n" +
+	"to_user_id\x18\x03 \x01(\x03R\btoUserId\x12\x18\n" +
+	"\acontent\x18\x04 \x01(\fR\acontent\x12\x19\n" +
+	"\bmsg_type\x18\x05 \x01(\x05R\amsgType\x12\x1f\n" +
+	"\vcreate_time\x18\x06 \x01(\x03R\n" +
+	"createTime2R\n" +
+	"\vChatService\x12C\n" +
+	"\vSendMessage\x12\x1a.chatpb.SendMessageRequest\x1a\x18.chatpb.SendMessageReplyB Z\x1e./internal/common/proto/chatpbb\x06proto3"
 
 var (
 	file_proto_chat_proto_rawDescOnce sync.Once
@@ -192,14 +266,17 @@ func file_proto_chat_proto_rawDescGZIP() []byte {
 	return file_proto_chat_proto_rawDescData
 }
 
-var file_proto_chat_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_proto_chat_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
 var file_proto_chat_proto_goTypes = []any{
-	(*Message)(nil), // 0: chatpb.Message
-	(*Control)(nil), // 1: chatpb.Control
+	(*SendMessageRequest)(nil), // 0: chatpb.SendMessageRequest
+	(*SendMessageReply)(nil),   // 1: chatpb.SendMessageReply
+	(*Message)(nil),            // 2: chatpb.Message
 }
 var file_proto_chat_proto_depIdxs = []int32{
-	0, // [0:0] is the sub-list for method output_type
-	0, // [0:0] is the sub-list for method input_type
+	0, // 0: chatpb.ChatService.SendMessage:input_type -> chatpb.SendMessageRequest
+	1, // 1: chatpb.ChatService.SendMessage:output_type -> chatpb.SendMessageReply
+	1, // [1:2] is the sub-list for method output_type
+	0, // [0:1] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name
 	0, // [0:0] is the sub-list for extension extendee
 	0, // [0:0] is the sub-list for field type_name
@@ -216,9 +293,9 @@ func file_proto_chat_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_chat_proto_rawDesc), len(file_proto_chat_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   3,
 			NumExtensions: 0,
-			NumServices:   0,
+			NumServices:   1,
 		},
 		GoTypes:           file_proto_chat_proto_goTypes,
 		DependencyIndexes: file_proto_chat_proto_depIdxs,

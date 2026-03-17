@@ -3,7 +3,7 @@ dsn = "root:123456@tcp(127.0.0.1:3306)/likegochat?parseTime=true&charset=utf8mb4
 
 [logic]
 grpc_addr = "127.0.0.1:50051"
-
+chat_topic = "chat_messages"
 [api]
 http_addr = "127.0.0.1:8080"
 logic_grpc_addr = "127.0.0.1:50051"
@@ -26,3 +26,11 @@ log_file_level = "debug"
 [connect]
 connect_grpc_addr = "127.0.0.1:50052"
 connec_http_addr = "127.0.0.1:8081"
+
+[kafka]
+# Kafka 节点地址列表
+kafka_brokers = ["127.0.0.1:9092"]
+# 消费组名称，保证多个Task进程能负载均衡地消费消息
+kafka__consumer_group = "chat_task_group"
+# 需要订阅的业务Topic
+kafka__chat_topic = "chat_messages"

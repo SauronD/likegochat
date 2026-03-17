@@ -1,46 +1,55 @@
 package task
 
 import (
-	"likegochat/internal/common/proto/connectpb"
 	"sync"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+
+	"likegochat/internal/common/proto/connectpb"
 )
 
+// ConnectClientPool 管理到所有存活 Connect 节点的 gRPC 连接
 type ConnectClientPool struct {
 	clients map[string]connectpb.ConnectServiceClient
 	lock    sync.RWMutex
 }
 
-var DefaultClientPool = &ConnectClientPool{
-	clients: make(map[string]connectpb.ConnectServiceClient),
+// NewConnectClientPool 初始化连接池
+func NewConnectClientPool() *ConnectClientPool {
+	return &ConnectClientPool{
+		clients: make(map[string]connectpb.ConnectServiceClient),
+	}
 }
 
-// GetClient 根据目标地址获取或创建一个 gRPC 客户端
-func (p *ConnectClientPool) GetClient(serverAddress string) (connectpb.ConnectServiceClient, error) {
+// GetClient 根据 redis 中查出的 serverID 获取或新建 gRPC 客户端
+func (p *ConnectClientPool) GetClient(serverID string) (connectpb.ConnectServiceClient, error) {
+	// 1. 优先读锁获取，提升并发性能
 	p.lock.RLock()
-	client, exists := p.clients[serverAddress]
+	client, exists := p.clients[serverID]
 	p.lock.RUnlock()
 
 	if exists {
 		return client, nil
 	}
 
+	// 2. 缓存未命中，加写锁创建新连接
 	p.lock.Lock()
 	defer p.lock.Unlock()
 
-	// 并发安全检测（防止其他协程已创建）
-	if client, exists = p.clients[serverAddress]; exists {
+	// 3. 双重检查机制 (Double-Check)，防止并发协程重复创建
+	if client, exists = p.clients[serverID]; exists {
 		return client, nil
 	}
 
-	conn, err := grpc.Dial(serverAddress, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	// 4. 建立底层 TCP/HTTP2 连接
+	conn, err := grpc.Dial(serverID, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return nil, err
 	}
 
 	newClient := connectpb.NewConnectServiceClient(conn)
-	p.clients[serverAddress] = newClient
+	p.clients[serverID] = newClient
+
 	return newClient, nil
 }
