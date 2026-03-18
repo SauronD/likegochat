@@ -6,14 +6,16 @@ import (
 	"net/http"
 	"time"
 
-	authpb "likegochat/internal/common/proto/authpb"
+	"likegochat/internal/common/proto/authpb"
+	"likegochat/internal/common/proto/chatpb"
 )
 
-type AuthHandler struct {
-	Client authpb.AuthServiceClient
+type APIHandler struct {
+	AuthClient authpb.AuthServiceClient
+	ChatClient chatpb.ChatServiceClient
 }
 
-func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
+func (h *APIHandler) Register(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -30,7 +32,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
 	defer cancel()
 
-	out, err := h.Client.Register(ctx, &authpb.RegisterRequest{
+	out, err := h.AuthClient.Register(ctx, &authpb.RegisterRequest{
 		Username: in.Username,
 		Password: in.Password,
 	})
@@ -41,7 +43,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]any{"user_id": out.UserId})
 }
 
-func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
+func (h *APIHandler) Login(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -58,7 +60,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
 	defer cancel()
 
-	out, err := h.Client.Login(ctx, &authpb.LoginRequest{
+	out, err := h.AuthClient.Login(ctx, &authpb.LoginRequest{
 		Username:  in.Username,
 		Password:  in.Password,
 		Ip:        r.RemoteAddr,
@@ -75,7 +77,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (h *AuthHandler) Verify(w http.ResponseWriter, r *http.Request) {
+func (h *APIHandler) Verify(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("Authorization")
 	if token == "" {
 		http.Error(w, "missing sesson id", 401)
@@ -85,7 +87,7 @@ func (h *AuthHandler) Verify(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 	defer cancel()
 
-	out, err := h.Client.Verify(ctx, &authpb.VerifyRequest{SessionId: token})
+	out, err := h.AuthClient.Verify(ctx, &authpb.VerifyRequest{SessionId: token})
 	if err != nil {
 		http.Error(w, err.Error(), 500)
 		return

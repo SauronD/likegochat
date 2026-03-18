@@ -14,13 +14,21 @@ func main() {
 		log.Fatal(err)
 	}
 
-	client, conn, err := common.NewAuthClient(cfg.API.LogicGRPCAddr)
+	authClient, authConn, err := common.NewAuthClient(cfg.API.LogicGRPCAddr)
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer conn.Close()
+	defer authConn.Close()
 
-	h := &api.AuthHandler{Client: client}
+	chatClient, chatConn, err := common.NewChatClient(cfg.Logic.GRPCAddr)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer chatConn.Close()
+	h := &api.APIHandler{
+		AuthClient: authClient,
+		ChatClient: chatClient,
+	}
 
 	mux := http.NewServeMux()
 	// 注册功能：POST:username,password
@@ -29,6 +37,8 @@ func main() {
 	mux.HandleFunc("/api/login", h.Login)
 	mux.HandleFunc("/api/verify", h.Verify)
 
+	// 单人聊天信息发送：POST:message、touserid
+	mux.HandleFunc("/api/send", h.SendMessage)
 	log.Println("api http listening on", cfg.API.HTTPAddr)
 	log.Fatal(http.ListenAndServe(cfg.API.HTTPAddr, mux))
 }
