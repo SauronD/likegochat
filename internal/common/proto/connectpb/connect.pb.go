@@ -22,9 +22,10 @@ const (
 )
 
 type PushMsgRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	ToUserId      int64                  `protobuf:"varint,1,opt,name=to_user_id,json=toUserId,proto3" json:"to_user_id,omitempty"`
-	Payload       []byte                 `protobuf:"bytes,2,opt,name=payload,proto3" json:"payload,omitempty"` // 序列化后的具体聊天内容
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	ToUserId int64                  `protobuf:"varint,1,opt,name=to_user_id,json=toUserId,proto3" json:"to_user_id,omitempty"`
+	// 序列化后的具体聊天内容，connect层不负责数据的反序列化，反序列化放到终端做
+	Payload       []byte `protobuf:"bytes,2,opt,name=payload,proto3" json:"payload,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -117,6 +118,118 @@ func (x *PushMsgReply) GetSuccess() bool {
 	return false
 }
 
+type BroadcastRoomRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	GroupId       int64                  `protobuf:"varint,1,opt,name=group_id,json=groupId,proto3" json:"group_id,omitempty"`
+	FromUserId    int64                  `protobuf:"varint,2,opt,name=from_user_id,json=fromUserId,proto3" json:"from_user_id,omitempty"`
+	Payload       []byte                 `protobuf:"bytes,3,opt,name=payload,proto3" json:"payload,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BroadcastRoomRequest) Reset() {
+	*x = BroadcastRoomRequest{}
+	mi := &file_proto_connect_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BroadcastRoomRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BroadcastRoomRequest) ProtoMessage() {}
+
+func (x *BroadcastRoomRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_connect_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BroadcastRoomRequest.ProtoReflect.Descriptor instead.
+func (*BroadcastRoomRequest) Descriptor() ([]byte, []int) {
+	return file_proto_connect_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *BroadcastRoomRequest) GetGroupId() int64 {
+	if x != nil {
+		return x.GroupId
+	}
+	return 0
+}
+
+func (x *BroadcastRoomRequest) GetFromUserId() int64 {
+	if x != nil {
+		return x.FromUserId
+	}
+	return 0
+}
+
+func (x *BroadcastRoomRequest) GetPayload() []byte {
+	if x != nil {
+		return x.Payload
+	}
+	return nil
+}
+
+type BroadcastRoomReply struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	Fanout        int32                  `protobuf:"varint,2,opt,name=fanout,proto3" json:"fanout,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BroadcastRoomReply) Reset() {
+	*x = BroadcastRoomReply{}
+	mi := &file_proto_connect_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BroadcastRoomReply) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BroadcastRoomReply) ProtoMessage() {}
+
+func (x *BroadcastRoomReply) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_connect_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BroadcastRoomReply.ProtoReflect.Descriptor instead.
+func (*BroadcastRoomReply) Descriptor() ([]byte, []int) {
+	return file_proto_connect_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *BroadcastRoomReply) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *BroadcastRoomReply) GetFanout() int32 {
+	if x != nil {
+		return x.Fanout
+	}
+	return 0
+}
+
 var File_proto_connect_proto protoreflect.FileDescriptor
 
 const file_proto_connect_proto_rawDesc = "" +
@@ -127,9 +240,18 @@ const file_proto_connect_proto_rawDesc = "" +
 	"to_user_id\x18\x01 \x01(\x03R\btoUserId\x12\x18\n" +
 	"\apayload\x18\x02 \x01(\fR\apayload\"(\n" +
 	"\fPushMsgReply\x12\x18\n" +
-	"\asuccess\x18\x01 \x01(\bR\asuccess2O\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\"m\n" +
+	"\x14BroadcastRoomRequest\x12\x19\n" +
+	"\bgroup_id\x18\x01 \x01(\x03R\agroupId\x12 \n" +
+	"\ffrom_user_id\x18\x02 \x01(\x03R\n" +
+	"fromUserId\x12\x18\n" +
+	"\apayload\x18\x03 \x01(\fR\apayload\"F\n" +
+	"\x12BroadcastRoomReply\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x16\n" +
+	"\x06fanout\x18\x02 \x01(\x05R\x06fanout2\xa0\x01\n" +
 	"\x0eConnectService\x12=\n" +
-	"\aPushMsg\x12\x19.connectpb.PushMsgRequest\x1a\x17.connectpb.PushMsgReplyB-Z+./internal/common/proto/connectpb;connectpbb\x06proto3"
+	"\aPushMsg\x12\x19.connectpb.PushMsgRequest\x1a\x17.connectpb.PushMsgReply\x12O\n" +
+	"\rBroadcastRoom\x12\x1f.connectpb.BroadcastRoomRequest\x1a\x1d.connectpb.BroadcastRoomReplyB-Z+./internal/common/proto/connectpb;connectpbb\x06proto3"
 
 var (
 	file_proto_connect_proto_rawDescOnce sync.Once
@@ -143,16 +265,20 @@ func file_proto_connect_proto_rawDescGZIP() []byte {
 	return file_proto_connect_proto_rawDescData
 }
 
-var file_proto_connect_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_proto_connect_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_proto_connect_proto_goTypes = []any{
-	(*PushMsgRequest)(nil), // 0: connectpb.PushMsgRequest
-	(*PushMsgReply)(nil),   // 1: connectpb.PushMsgReply
+	(*PushMsgRequest)(nil),       // 0: connectpb.PushMsgRequest
+	(*PushMsgReply)(nil),         // 1: connectpb.PushMsgReply
+	(*BroadcastRoomRequest)(nil), // 2: connectpb.BroadcastRoomRequest
+	(*BroadcastRoomReply)(nil),   // 3: connectpb.BroadcastRoomReply
 }
 var file_proto_connect_proto_depIdxs = []int32{
 	0, // 0: connectpb.ConnectService.PushMsg:input_type -> connectpb.PushMsgRequest
-	1, // 1: connectpb.ConnectService.PushMsg:output_type -> connectpb.PushMsgReply
-	1, // [1:2] is the sub-list for method output_type
-	0, // [0:1] is the sub-list for method input_type
+	2, // 1: connectpb.ConnectService.BroadcastRoom:input_type -> connectpb.BroadcastRoomRequest
+	1, // 2: connectpb.ConnectService.PushMsg:output_type -> connectpb.PushMsgReply
+	3, // 3: connectpb.ConnectService.BroadcastRoom:output_type -> connectpb.BroadcastRoomReply
+	2, // [2:4] is the sub-list for method output_type
+	0, // [0:2] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name
 	0, // [0:0] is the sub-list for extension extendee
 	0, // [0:0] is the sub-list for field type_name
@@ -169,7 +295,7 @@ func file_proto_connect_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_connect_proto_rawDesc), len(file_proto_connect_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

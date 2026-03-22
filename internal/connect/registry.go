@@ -8,7 +8,12 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-const UserServerKeyPrefix = "user_server:"
+const (
+	UserServerKeyPrefix = "user_server:"
+	UserGroupsKeyPrefix = "user_groups:"
+	GroupNodesKeyPrefix = "group_nodes:"
+	GroupNodeRefPrefix  = "group_node_ref:"
+)
 
 type Registry struct {
 	RDB *redis.Client

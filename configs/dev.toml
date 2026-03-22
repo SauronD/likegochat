@@ -23,14 +23,27 @@ log_file_backups = 5
 log_file_age = 7
 log_file_level = "debug"
 
-[connect]
+[connect1]
 connect_grpc_addr = "127.0.0.1:50052"
 connec_http_addr = "127.0.0.1:8081"
+
+[connect2]
+connect_grpc_addr = "127.0.0.1:50053"
+connec_http_addr = "127.0.0.1:8082"
+
 
 [kafka]
 # Kafka 节点地址列表
 kafka_brokers = ["127.0.0.1:9092"]
-# 消费组名称，保证多个Task进程能负载均衡地消费消息
-kafka__consumer_group = "chat_task_group"
-# 需要订阅的业务Topic
+# 单人消费组名称
+kafka__single_consumer_group = "singlechat_task_group"
+# 单人聊天Topic
 kafka__chat_topic = "chat_messages"
+# 多人消费组名称
+kafka__group_consumer_group = "groupchat_task_group"
+# 多人聊天Topic
+kafka__group_chat_topic = "group_chat_messages"
+# 多人聊天模式阈值
+small_group_max_members = 200
+# kafka版本
+kafka_version = "3.8.1"

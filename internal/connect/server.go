@@ -6,7 +6,7 @@ import (
 	"likegochat/internal/common/proto/connectpb" // 替换为你的实际 protobuf 路径
 )
 
-// GrpcServer 实现 Task 调用 Connect 层的接口
+// GrpcServer实现Task调用Connect层的单人/多人聊天服务
 type GrpcServer struct {
 	connectpb.UnimplementedConnectServiceServer
 }
@@ -24,4 +24,13 @@ func (s *GrpcServer) PushMsg(ctx context.Context, req *connectpb.PushMsgRequest)
 	}
 
 	return &connectpb.PushMsgReply{Success: false}, nil
+}
+
+// BroadcastRoom 群聊信息，向当前节点的指定group的用户连接发送信息
+func (s *GrpcServer) BroadcastRoom(ctx context.Context, req *connectpb.BroadcastRoomRequest) (*connectpb.BroadcastRoomReply, error) {
+	fanout := DefaultRoomManager.BroadcastRoom(req.GroupId, req.FromUserId, req.Payload)
+	return &connectpb.BroadcastRoomReply{
+		Success: true,
+		Fanout:  int32(fanout),
+	}, nil
 }

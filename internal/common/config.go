@@ -35,16 +35,22 @@ type Config struct {
 		LogFileAge     int    `mapstructure:"log_file_age"`
 		LogFileLevel   string `mapstructure:"log_file_level"`
 	} `mapstructure:"logger"`
-	Connect struct {
-		ConnectGRPCAddr   string `mapstructure:"connect_grpc_addr"`
-		ConnectHTTPAddr   string `mapstructure:"connec_http_addr"`
-		ConnectServerAddr string `mapstructure:"connect_grpc_addr"`
-	} `mapstructure:"connect"`
-	Kafka struct {
-		KafkaBrokers  []string `mapstructure:"kafka_brokers"`
-		ConsumerGroup string   `mapstructure:"kafka__consumer_group"`
-		ChatTopic     string   `mapstructure:"kafka__chat_topic"`
+	Connect1 ConnectConfig `mapstructure:"connect1"`
+	Connect2 ConnectConfig `mapstructure:"connect2"`
+	Kafka    struct {
+		KafkaBrokers            []string `mapstructure:"kafka_brokers"`
+		SinglechatConsumerGroup string   `mapstructure:"kafka__single_consumer_group"`
+		GroupchatConsumerGroup  string   `mapstructure:"kafka__group_consumer_group"`
+		ChatTopic               string   `mapstructure:"kafka__chat_topic"`
+		GroupChatTopic          string   `mapstructure:"kafka__group_chat_topic"`
+		SmallGroupMaxMembers    int      `mapstructure:"small_group_max_members"`
+		Version                 string   `mapstructure:"kafka_version"`
 	} `mapstructure:"kafka"`
+}
+type ConnectConfig struct {
+	ConnectGRPCAddr   string `mapstructure:"connect_grpc_addr"`
+	ConnectHTTPAddr   string `mapstructure:"connec_http_addr"`
+	ConnectServerAddr string `mapstructure:"connect_grpc_addr"`
 }
 
 func LoadConfig(path string) (*Config, error) {

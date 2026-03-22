@@ -5,6 +5,8 @@ option go_package = "./internal/common/proto/chatpb";
 service ChatService {
   // 发送单聊消息
   rpc SendMessage(SendMessageRequest) returns (SendMessageReply);
+  // 发送群聊消息
+  rpc SendGroupMessage(SendGroupMessageRequest) returns (SendGroupMessageReply);
 }
 
 message SendMessageRequest {
@@ -19,7 +21,19 @@ message SendMessageReply {
   int64 timestamp = 2; // 服务器接收时间戳
 }
 
-// 这是存入 Kafka 和 MySQL 的底层物理消息模型
+message SendGroupMessageRequest {
+  int64 from_user_id = 1;
+  int64 group_id = 2;
+  bytes content = 3;
+  int32 msg_type = 4;
+  int32 routing_mode = 5;
+}
+
+message SendGroupMessageReply {
+  int64 msg_id = 1;
+  int64 timestamp = 2;
+}
+// 单聊物理消息
 message Message {
   int64 msg_id = 1;
   int64 from_user_id = 2;
@@ -27,4 +41,15 @@ message Message {
   bytes content = 4;
   int32 msg_type = 5;
   int64 create_time = 6;
+}
+
+// 群聊物理消息
+message GroupMessage {
+  int64 msg_id = 1;
+  int64 from_user_id = 2;
+  int64 group_id = 3;
+  bytes content = 4;
+  int32 msg_type = 5;
+  int64 create_time = 6;
+  int32 routing_mode = 7;
 }

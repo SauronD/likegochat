@@ -37,8 +37,13 @@ func main() {
 	mux.HandleFunc("/api/login", h.Login)
 	mux.HandleFunc("/api/verify", h.Verify)
 
-	// 单人聊天信息发送：POST:message、touserid
+	// 单人聊天信息发送：POST:to_user_id、content、msg_type
 	mux.HandleFunc("/api/send", h.SendMessage)
+	// 多人聊天信息发送：POST:group_id、content、msg_type
+	mux.HandleFunc("/api/groupsend", h.SendGroupMessage)
+	// 创建多人聊天室/加入多人聊天室
+	mux.HandleFunc("/api/creategroup", func(w http.ResponseWriter, r *http.Request) {})
+	mux.HandleFunc("/api/addgroup", func(w http.ResponseWriter, r *http.Request) {})
 	log.Println("api http listening on", cfg.API.HTTPAddr)
 	log.Fatal(http.ListenAndServe(cfg.API.HTTPAddr, mux))
 }

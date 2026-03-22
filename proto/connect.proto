@@ -5,6 +5,8 @@ option go_package = "./internal/common/proto/connectpb;connectpb";
 service ConnectService {
     // Task 层调用此方法，调用Connect层向指定用户下发数据
     rpc PushMsg(PushMsgRequest) returns (PushMsgReply);
+    // 群内广播:向群内所有用户发送消息
+    rpc BroadcastRoom(BroadcastRoomRequest) returns (BroadcastRoomReply);
 }
 
 message PushMsgRequest {
@@ -15,4 +17,14 @@ message PushMsgRequest {
 
 message PushMsgReply {
     bool success = 1;
+}
+
+message BroadcastRoomRequest {
+  int64 group_id = 1;
+  int64 from_user_id = 2;
+  bytes payload = 3;
+}
+message BroadcastRoomReply {
+  bool success = 1;
+  int32 fanout = 2;
 }

@@ -3,6 +3,7 @@ package logic
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strconv"
 	"time"
 
@@ -212,4 +213,8 @@ func (s *Store) DeleteSession(ctx context.Context, sessionID string) error {
 		[]string{sessionKey(sessionID), userSessionKey(userID)},
 		sessionID,
 	).Err()
+}
+func (s *Store) IsGroupMember(ctx context.Context, groupID, userID int64) (bool, error) {
+	key := fmt.Sprintf("group_members:%d", groupID)
+	return s.RDB.SIsMember(ctx, key, userID).Result()
 }

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"log"
 	"net"
 	"net/http"
@@ -16,20 +17,40 @@ import (
 )
 
 func main() {
+
+	connectNode := flag.Int("cn", -1, "指定当前进程加载的 Connect 节点配置段名称")
+
+	flag.Parse()
+
 	cfg, err := common.LoadConfig("configs/dev.toml")
 	if err != nil {
 		log.Fatal(err)
 	}
+	common.InitLogger(cfg.Logger.LogFilePath,
+		cfg.Logger.LogFileSize,
+		cfg.Logger.LogFileBackups,
+		cfg.Logger.LogFileAge,
+		cfg.Logger.LogFileLevel,
+	)
 	// 1. 初始化 Redis 客户端
 	rdb, err := common.OpenRedis(cfg.Redis.RedisAddr, cfg.Redis.Password, cfg.Redis.DB)
 	if err != nil {
 		log.Fatalf("Redis 连接失败: %v", err)
 	}
+	var connectConfig common.ConnectConfig
+	switch *connectNode {
+	case -1:
+		log.Fatalln("必须指定节点配置")
+	case 1:
+		connectConfig = cfg.Connect1
+	case 2:
+		connectConfig = cfg.Connect2
+	}
 
 	// 2. 初始化路由注册器
 	registry := &connect.Registry{
 		RDB:      rdb,
-		ServerID: cfg.Connect.ConnectServerAddr,
+		ServerID: connectConfig.ConnectServerAddr,
 	}
 
 	// 3. 建立连接至 Logic 层的 gRPC 客户端 (用于鉴权)
@@ -47,14 +68,14 @@ func main() {
 
 	// 5. 启动接收Task层调用的gRPC server端
 	go func() {
-		lis, err := net.Listen("tcp", cfg.Connect.ConnectGRPCAddr)
+		lis, err := net.Listen("tcp", connectConfig.ConnectGRPCAddr)
 		if err != nil {
 			log.Fatalf("gRPC 端口监听失败: %v", err)
 		}
 		grpcServer := grpc.NewServer()
 		connectpb.RegisterConnectServiceServer(grpcServer, &connect.GrpcServer{})
 
-		log.Printf("Connect 层内部 gRPC 服务已启动，监听 %s", cfg.Connect.ConnectGRPCAddr)
+		log.Printf("Connect 层内部 gRPC 服务已启动，监听 %s", connectConfig.ConnectGRPCAddr)
 		if err := grpcServer.Serve(lis); err != nil {
 			log.Fatalf("gRPC 服务运行失败: %v", err)
 		}
@@ -65,8 +86,8 @@ func main() {
 		http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 			connect.ServeWS(serverCtx, w, r)
 		})
-		log.Printf("Connect 层外部 WebSocket 服务已启动，监听 %s", cfg.Connect.ConnectHTTPAddr)
-		if err := http.ListenAndServe(cfg.Connect.ConnectHTTPAddr, nil); err != nil {
+		log.Printf("Connect 层外部 WebSocket 服务已启动，监听 %s", connectConfig.ConnectHTTPAddr)
+		if err := http.ListenAndServe(connectConfig.ConnectHTTPAddr, nil); err != nil {
 			log.Fatalf("HTTP 服务运行失败: %v", err)
 		}
 	}()

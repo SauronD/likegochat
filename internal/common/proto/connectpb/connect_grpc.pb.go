@@ -19,7 +19,8 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	ConnectService_PushMsg_FullMethodName = "/connectpb.ConnectService/PushMsg"
+	ConnectService_PushMsg_FullMethodName       = "/connectpb.ConnectService/PushMsg"
+	ConnectService_BroadcastRoom_FullMethodName = "/connectpb.ConnectService/BroadcastRoom"
 )
 
 // ConnectServiceClient is the client API for ConnectService service.
@@ -28,6 +29,8 @@ const (
 type ConnectServiceClient interface {
 	// Task 层调用此方法，调用Connect层向指定用户下发数据
 	PushMsg(ctx context.Context, in *PushMsgRequest, opts ...grpc.CallOption) (*PushMsgReply, error)
+	// 群内广播:向群内所有用户发送消息
+	BroadcastRoom(ctx context.Context, in *BroadcastRoomRequest, opts ...grpc.CallOption) (*BroadcastRoomReply, error)
 }
 
 type connectServiceClient struct {
@@ -48,12 +51,24 @@ func (c *connectServiceClient) PushMsg(ctx context.Context, in *PushMsgRequest, 
 	return out, nil
 }
 
+func (c *connectServiceClient) BroadcastRoom(ctx context.Context, in *BroadcastRoomRequest, opts ...grpc.CallOption) (*BroadcastRoomReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(BroadcastRoomReply)
+	err := c.cc.Invoke(ctx, ConnectService_BroadcastRoom_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ConnectServiceServer is the server API for ConnectService service.
 // All implementations must embed UnimplementedConnectServiceServer
 // for forward compatibility.
 type ConnectServiceServer interface {
 	// Task 层调用此方法，调用Connect层向指定用户下发数据
 	PushMsg(context.Context, *PushMsgRequest) (*PushMsgReply, error)
+	// 群内广播:向群内所有用户发送消息
+	BroadcastRoom(context.Context, *BroadcastRoomRequest) (*BroadcastRoomReply, error)
 	mustEmbedUnimplementedConnectServiceServer()
 }
 
@@ -66,6 +81,9 @@ type UnimplementedConnectServiceServer struct{}
 
 func (UnimplementedConnectServiceServer) PushMsg(context.Context, *PushMsgRequest) (*PushMsgReply, error) {
 	return nil, status.Error(codes.Unimplemented, "method PushMsg not implemented")
+}
+func (UnimplementedConnectServiceServer) BroadcastRoom(context.Context, *BroadcastRoomRequest) (*BroadcastRoomReply, error) {
+	return nil, status.Error(codes.Unimplemented, "method BroadcastRoom not implemented")
 }
 func (UnimplementedConnectServiceServer) mustEmbedUnimplementedConnectServiceServer() {}
 func (UnimplementedConnectServiceServer) testEmbeddedByValue()                        {}
@@ -106,6 +124,24 @@ func _ConnectService_PushMsg_Handler(srv interface{}, ctx context.Context, dec f
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ConnectService_BroadcastRoom_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(BroadcastRoomRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ConnectServiceServer).BroadcastRoom(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ConnectService_BroadcastRoom_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ConnectServiceServer).BroadcastRoom(ctx, req.(*BroadcastRoomRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ConnectService_ServiceDesc is the grpc.ServiceDesc for ConnectService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -116,6 +152,10 @@ var ConnectService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "PushMsg",
 			Handler:    _ConnectService_PushMsg_Handler,
+		},
+		{
+			MethodName: "BroadcastRoom",
+			Handler:    _ConnectService_BroadcastRoom_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
