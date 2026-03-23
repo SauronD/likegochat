@@ -160,19 +160,35 @@ func (c *ChatConsumer) handleSmallGroupMessage(ctx context.Context, gm *chatpb.G
 	if err != nil {
 		return err
 	}
+	g, gctx := errgroup.WithContext(ctx)
+
+	sem := make(chan struct{}, 100)
+
 	for _, uid := range memberIDs {
-		if uid == gm.FromUserId {
+		targetUID := uid
+		if targetUID == gm.FromUserId {
 			continue
 		}
-		serverID, err := c.getUserServerID(ctx, uid)
-		if err != nil || serverID == "" {
-			continue
+		select {
+		case sem <- struct{}{}:
+		case <-gctx.Done():
+			return gctx.Err()
 		}
-		if err := c.pushToUser(ctx, serverID, uid, payload); err != nil {
-			log.Printf("small group push failed group=%d user=%d err=%v", gm.GroupId, uid, err)
-		}
+
+		g.Go(func() error {
+			defer func() { <-sem }()
+			serverID, err := c.getUserServerID(gctx, targetUID)
+			if err != nil || serverID == "" {
+				return nil
+			}
+			if err := c.pushToUser(gctx, serverID, targetUID, payload); err != nil {
+				log.Printf("small group push failed group=%d user=%d err=%v", gm.GroupId, targetUID, err)
+			}
+			return nil
+		})
+
 	}
-	return nil
+	return g.Wait()
 }
 
 func (c *ChatConsumer) handleLargeGroupMessage(ctx context.Context, gm *chatpb.GroupMessage, payload []byte) error {
@@ -251,7 +267,7 @@ func (c *ChatConsumer) pushToUser(ctx context.Context, serverID string, userID i
 	if err != nil {
 		return err
 	}
-	rpcCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	rpcCtx, cancel := context.WithTimeout(ctx, 200*time.Millisecond)
 	defer cancel()
 
 	_, err = grpcClient.PushMsg(rpcCtx, &connectpb.PushMsgRequest{
