@@ -15,16 +15,22 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
+	"likegochat/internal/common"
 	"likegochat/internal/common/proto/chatpb"
 	"likegochat/internal/common/proto/connectpb"
 )
 
 const (
-	userServerKeyPrefix         = "user_server:"
-	groupMembersKeyPrefix       = "group_members:"
-	groupNodesKeyPrefix         = "group_nodes:"
-	RoutingModeSmall      int32 = 1 // 小群精准推送
-	RoutingModeLarge      int32 = 2 // 大群节点广播
+	// 每个用户-连接的connect节点
+	userServerKeyPrefix = "user_server:"
+	// 每个群的所有在线用户
+	groupMembersKeyPrefix = "group_members:"
+	// 所有在线的connect节点
+	groupNodesKeyPrefix = "group_nodes:"
+	// 小群走本地推送：查群的所有存活用户，再查每个用户连接的connect节点进行发送
+	RoutingModeSmall int32 = 1
+	// 大群节点广播：推送到所有connect节点上，每个节点通过groupid查到维护的bucket内并推送到所有连接的ws
+	RoutingModeLarge int32 = 2
 )
 
 // ChatConsumer 包含处理消息所需的全部外部依赖资源
@@ -250,7 +256,7 @@ func (c *ChatConsumer) persistMessage(ctx context.Context, chatMsg *chatpb.Messa
 	if c.DB == nil {
 		return fmt.Errorf("db is nil")
 	}
-	dbMsg := &Message{
+	dbMsg := &common.Message{
 		MsgID:       chatMsg.MsgId,
 		ClientMSGID: chatMsg.MsgId,
 		FromUserID:  chatMsg.FromUserId,

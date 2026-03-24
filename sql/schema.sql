@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS user_sessions (
   CONSTRAINT fk_sessions_user FOREIGN KEY (user_id) REFERENCES users(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- 单人聊天信息表
 CREATE TABLE IF NOT EXISTS messages(
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '数据库自增主键',
   msg_id BIGINT NOT NULL COMMENT '消息ID,服务器端接收时产生',
@@ -50,3 +51,36 @@ CREATE TABLE IF NOT EXISTS messages(
   KEY idx_pair_created (from_user_id, to_user_id, created_at, id)
 
 )ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT '单人聊天信息表';
+
+-- 群组表
+CREATE TABLE IF NOT EXISTS `groups`(
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '主键',
+  group_name VARCHAR(30) NOT NULL COMMENT '群名称',
+  group_status TINYINT NOT NULL DEFAULT 0 COMMENT '群状态:0正常;1封禁',
+  owner_user_id BIGINT UNSIGNED NOT NULL COMMENT '群主用户id',
+  member_count INT UNSIGNED NOT NULL DEFAULT 1 COMMENT '群人数',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '群创建时间',
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '群组表信息更新时间', 
+
+  PRIMARY KEY (id),
+  UNIQUE KEY (group_name),
+  KEY `owner` (owner_user_id)
+)ENGINE=InnoDB DEFAULT CHARACTER SET=UTF8MB4 COLLATE=utf8mb4_0900_ai_ci COMMENT '群组信息表';
+
+
+-- 群组成员表
+CREATE TABLE IF NOT EXISTS `group_members`(
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '主键',
+  group_id BIGINT UNSIGNED NOT NULL COMMENT '群id',
+  user_id BIGINT UNSIGNED NOT NULL COMMENT '用户id',
+  user_role TINYINT NOT NULL DEFAULT 0 COMMENT '用户权限:0普通;1管理员;2群主',
+  user_status TINYINT NOT NULL DEFAULT 0 COMMENT '用户状态:0活跃;1退群;2被踢',
+  joined_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '加入群时间',
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '群组成员信息更新时间',
+  PRIMARY KEY (id),
+  UNIQUE KEY `uk_group_user` (group_id,user_id),
+  -- 查询某个群里所有活跃的用户
+  KEY `idx_group_status` (group_id,user_status),
+  -- 查询某个用户的所有活跃的群
+  KEY `idx_user_status` (user_id,user_status)
+)ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT '群组成员信息表';

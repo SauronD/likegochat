@@ -4,11 +4,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"likegochat/internal/common"
 	"strconv"
 	"time"
 
 	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
+)
+
+const (
+	redisSessPrefix string = "sess:"
+	redisUserPrefix string = "user_sess:"
 )
 
 type Store struct {
@@ -20,38 +26,8 @@ type Store struct {
 	SessionTTL time.Duration
 }
 
-type User struct {
-	ID           int64     `gorm:"column:id;primaryKey;autoIncrement"`
-	Username     string    `gorm:"column:username"`
-	PasswordHash string    `gorm:"column:password_hash"`
-	CreatTime    time.Time `gorm:"column:created_at;autoCreateTime"`
-}
-
-func (User) TableName() string {
-	return "users"
-}
-
-type UserSession struct {
-	ID        int64  `gorm:"column:id;primaryKey;autoIncrement"`
-	UserID    int64  `gorm:"column:user_id"`
-	SessionID string `gorm:"column:session_id"`
-	// 登录时间，注意不能设置为指针，因为gorm插入时会换成NULL，和数据库NOT NULL冲突
-	IssuedAt *time.Time `gorm:"column:issued_at;autoCreateTime"`
-	// session过期时间
-	ExpiresAt time.Time `gorm:"column:expires_at"`
-	// session撤销时间，在数据库中可以为NULL，因此需要用指针来区别
-	RevokedAt *time.Time `gorm:"column:revoked_at"`
-	IP        string     `gorm:"column:ip"`
-	UserAgent string     `gorm:"column:user_agent"`
-}
-
-// gorm结构体绑定表的方法：实现TableName()方法
-func (UserSession) TableName() string {
-	return "user_sessions"
-}
-
 func (s *Store) CreateUser(ctx context.Context, username, passwordHash string) (int64, error) {
-	u := &User{
+	u := &common.User{
 		Username:     username,
 		PasswordHash: passwordHash,
 	}
@@ -63,8 +39,8 @@ func (s *Store) CreateUser(ctx context.Context, username, passwordHash string) (
 	return u.ID, nil
 }
 
-func (s *Store) GetUserByUsername(ctx context.Context, username string) (*User, error) {
-	u := &User{}
+func (s *Store) GetUserByUsername(ctx context.Context, username string) (*common.User, error) {
+	u := &common.User{}
 	// sql: select * from users where username= username;
 	err := s.DB.WithContext(ctx).
 		Where("username = ?", username).
@@ -74,9 +50,6 @@ func (s *Store) GetUserByUsername(ctx context.Context, username string) (*User, 
 	}
 	return u, nil
 }
-
-const redisSessPrefix string = "sess:"
-const redisUserPrefix string = "user_sess:"
 
 // Redis key:
 // sess:<session_id> -> user_id
@@ -214,6 +187,8 @@ func (s *Store) DeleteSession(ctx context.Context, sessionID string) error {
 		sessionID,
 	).Err()
 }
+
+// 查询userID是否在groupID群里
 func (s *Store) IsGroupMember(ctx context.Context, groupID, userID int64) (bool, error) {
 	key := fmt.Sprintf("group_members:%d", groupID)
 	return s.RDB.SIsMember(ctx, key, userID).Result()

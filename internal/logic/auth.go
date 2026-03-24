@@ -9,6 +9,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 
+	"likegochat/internal/common"
 	authpb "likegochat/internal/common/proto/authpb"
 )
 
@@ -83,7 +84,7 @@ func (a *AuthServer) Login(ctx context.Context, req *authpb.LoginRequest) (*auth
 		return nil, errors.New("empty username or password")
 	}
 
-	user := &User{}
+	user := &common.User{}
 
 	err := a.Store.DB.WithContext(ctx).Where("username = ?", req.Username).Take(user).Error
 	if err != nil {
