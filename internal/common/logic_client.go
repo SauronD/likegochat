@@ -19,7 +19,7 @@ func NewAuthClient(addr string) (authpb.AuthServiceClient, *grpc.ClientConn, err
 	return authpb.NewAuthServiceClient(conn), conn, nil
 }
 
-// connect层信息传输服务grpc客户端创建
+// logic层信息传输服务grpc客户端创建
 func NewChatClient(addr string) (chatpb.ChatServiceClient, *grpc.ClientConn, error) {
 	// grpc明文传输
 	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))

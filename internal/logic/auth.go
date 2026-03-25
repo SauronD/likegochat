@@ -163,3 +163,24 @@ func (a *AuthServer) Logout(ctx context.Context, req *authpb.LogoutRequest) (*au
 		Ok: true,
 	}, nil
 }
+
+type UserSmallGroup struct {
+	GroupID     int64  `gorm:"column:group_id"`
+	GroupName   string `gorm:"column:group_name"`
+	MemberCount int32  `gorm:"column:member_count"`
+}
+
+func (s *Store) ListUserSmallGroups(ctx context.Context, userID int64) ([]UserSmallGroup, error) {
+	var groups []UserSmallGroup
+	err := s.DB.WithContext(ctx).
+		Table("group_members AS gm").
+		Select("g.id AS group_id, g.group_name, g.member_count").
+		Joins("JOIN `groups` AS g ON g.id = gm.group_id").
+		Where("gm.user_id = ? AND gm.user_status = 0 AND g.group_status = 0", userID).
+		Order("gm.joined_at DESC").
+		Scan(&groups).Error
+	if err != nil {
+		return nil, err
+	}
+	return groups, nil
+}

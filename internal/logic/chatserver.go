@@ -94,6 +94,7 @@ func (s *ChatServer) SendGroupMessage(ctx context.Context, req *chatpb.SendGroup
 	}
 
 	if s.Store != nil {
+		// 小群聊天校验：
 		ok, err := s.Store.IsGroupMember(ctx, req.GroupId, req.FromUserId)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "群成员校验失败: %v", err)
@@ -120,7 +121,7 @@ func (s *ChatServer) SendGroupMessage(ctx context.Context, req *chatpb.SendGroup
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "群消息序列化失败: %v", err)
 	}
-
+	//写入Kafka消息队列
 	kMsg := &sarama.ProducerMessage{
 		Topic: s.GroupChatTopic,
 		Key:   sarama.StringEncoder(strconv.FormatInt(req.GroupId, 10)),

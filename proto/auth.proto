@@ -29,6 +29,7 @@ message LoginRequest {
 message LoginReply {
   int64 user_id = 1;
   string session_id = 2;
+  repeated SmallGroupInfo small_groups = 3;
 }
 
 message VerifyRequest {
@@ -44,4 +45,10 @@ message LogoutRequest {
 
 message LogoutReply {
   bool ok = 1;
+}
+
+message SmallGroupInfo {
+  int64 group_id = 1;
+  string group_name = 2;
+  int32 member_count = 3;
 }

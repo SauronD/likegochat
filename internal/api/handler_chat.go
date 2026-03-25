@@ -110,6 +110,7 @@ func (h *APIHandler) SendGroupMessage(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
+	// 兼容两种消息发送
 	if !(reqBody.RouteMode == 1 || reqBody.RouteMode == 2) {
 		http.Error(w, "invalid group message type", http.StatusBadRequest)
 		return

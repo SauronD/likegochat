@@ -44,6 +44,7 @@ func main() {
 	// 创建多人聊天室/加入多人聊天室
 	mux.HandleFunc("/api/creategroup", func(w http.ResponseWriter, r *http.Request) {})
 	mux.HandleFunc("/api/addgroup", func(w http.ResponseWriter, r *http.Request) {})
+
 	log.Println("api http listening on", cfg.API.HTTPAddr)
 	log.Fatal(http.ListenAndServe(cfg.API.HTTPAddr, mux))
 }
