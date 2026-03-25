@@ -25,10 +25,13 @@ func nextMessageID(nowMilli int64) int64 {
 
 type ChatServer struct {
 	chatpb.UnimplementedChatServiceServer
-	KafkaProducer  sarama.SyncProducer
-	ChatTopic      string
+	KafkaProducer sarama.SyncProducer
+	ChatTopic     string
+	// 小群消息Kafka topic
 	GroupChatTopic string
-	Store          *Store
+	// 房间消息Kafka topic
+	RommChatTopic string
+	Store         *Store
 }
 
 func (s *ChatServer) SendMessage(ctx context.Context, req *chatpb.SendMessageRequest) (*chatpb.SendMessageReply, error) {
@@ -82,7 +85,7 @@ func (s *ChatServer) SendMessage(ctx context.Context, req *chatpb.SendMessageReq
 	}, nil
 }
 
-func (s *ChatServer) SendGroupMessage(ctx context.Context, req *chatpb.SendGroupMessageRequest) (*chatpb.SendGroupMessageReply, error) {
+func (s *ChatServer) SendGroupMessage(ctx context.Context, req *chatpb.SendSmallGroupMessageRequest) (*chatpb.SendMessageReply, error) {
 	if req.GroupId <= 0 {
 		return nil, status.Error(codes.InvalidArgument, "group_id 无效")
 	}
@@ -94,7 +97,7 @@ func (s *ChatServer) SendGroupMessage(ctx context.Context, req *chatpb.SendGroup
 	}
 
 	if s.Store != nil {
-		// 小群聊天校验：
+		// 小群聊天校验：发送消息的用户必须是群的成员
 		ok, err := s.Store.IsGroupMember(ctx, req.GroupId, req.FromUserId)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "群成员校验失败: %v", err)
@@ -108,13 +111,12 @@ func (s *ChatServer) SendGroupMessage(ctx context.Context, req *chatpb.SendGroup
 	msgID := nextMessageID(now)
 
 	groupMsg := &chatpb.GroupMessage{
-		MsgId:       msgID,
-		FromUserId:  req.FromUserId,
-		GroupId:     req.GroupId,
-		Content:     req.Content,
-		MsgType:     req.MsgType,
-		CreateTime:  now,
-		RoutingMode: req.RoutingMode,
+		MsgId:      msgID,
+		FromUserId: req.FromUserId,
+		GroupId:    req.GroupId,
+		Content:    req.Content,
+		MsgType:    req.MsgType,
+		CreateTime: now,
 	}
 
 	payload, err := proto.Marshal(groupMsg)
@@ -131,7 +133,7 @@ func (s *ChatServer) SendGroupMessage(ctx context.Context, req *chatpb.SendGroup
 		return nil, status.Errorf(codes.Internal, "写入群消息队列失败: %v", err)
 	}
 
-	return &chatpb.SendGroupMessageReply{
+	return &chatpb.SendMessageReply{
 		MsgId:     msgID,
 		Timestamp: now,
 	}, nil

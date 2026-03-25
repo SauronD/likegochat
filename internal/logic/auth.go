@@ -106,10 +106,24 @@ func (a *AuthServer) Login(ctx context.Context, req *authpb.LoginRequest) (*auth
 	if err != nil {
 		return nil, fmt.Errorf("refresh seesion faild:%s", err.Error())
 	}
+	// 查询用户加入的小组：登录是低频操作，可以接受MySQL查询
+	groups, err := a.Store.ListUserSmallGroups(ctx, user.ID)
+	if err != nil {
+		return nil, fmt.Errorf("load small group failed:%s", err.Error())
+	}
 
+	smallGroups := make([]*authpb.SmallGroupInfo, 0, len(groups))
+	for i := range groups {
+		smallGroups = append(smallGroups, &authpb.SmallGroupInfo{
+			GroupId:     groups[i].GroupID,
+			GroupName:   groups[i].GroupName,
+			MemberCount: groups[i].MemberCount,
+		})
+	}
 	return &authpb.LoginReply{
-		UserId:    user.ID,
-		SessionId: sessionID,
+		UserId:      user.ID,
+		SessionId:   sessionID,
+		SmallGroups: smallGroups,
 	}, nil
 }
 
@@ -172,13 +186,22 @@ type UserSmallGroup struct {
 
 func (s *Store) ListUserSmallGroups(ctx context.Context, userID int64) ([]UserSmallGroup, error) {
 	var groups []UserSmallGroup
-	err := s.DB.WithContext(ctx).
-		Table("group_members AS gm").
-		Select("g.id AS group_id, g.group_name, g.member_count").
-		Joins("JOIN `groups` AS g ON g.id = gm.group_id").
-		Where("gm.user_id = ? AND gm.user_status = 0 AND g.group_status = 0", userID).
-		Order("gm.joined_at DESC").
+	// err := s.DB.WithContext(ctx).
+	// 	Table("group_members AS gm").
+	// 	Select("g.id AS group_id, g.group_name, g.member_count").
+	// 	Joins("JOIN `groups` AS g ON g.id = gm.group_id").
+	// 	Where("gm.user_id = ? AND gm.user_status = 0 AND g.group_status = 0", userID).
+	// 	Order("gm.joined_at DESC").
+	// 	Scan(&groups).Error
+
+	err := s.DB.Debug().WithContext(ctx).
+		Table("group_members").
+		Joins("LEFT JOIN groups ON group_members.group_id=groups.id").
+		Select("group_members.group_id,groups.group_name,groups.member_count").
+		Where("group_members.id=? AND groups.group_status=? AND group_members.user_status=?", userID, 0, 0).
+		Order("group_members.joined_at DESC").
 		Scan(&groups).Error
+
 	if err != nil {
 		return nil, err
 	}

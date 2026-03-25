@@ -21,6 +21,7 @@ const _ = grpc.SupportPackageIsVersion9
 const (
 	ChatService_SendMessage_FullMethodName      = "/chatpb.ChatService/SendMessage"
 	ChatService_SendGroupMessage_FullMethodName = "/chatpb.ChatService/SendGroupMessage"
+	ChatService_SendRoomMessage_FullMethodName  = "/chatpb.ChatService/SendRoomMessage"
 )
 
 // ChatServiceClient is the client API for ChatService service.
@@ -29,8 +30,10 @@ const (
 type ChatServiceClient interface {
 	// 发送单聊消息
 	SendMessage(ctx context.Context, in *SendMessageRequest, opts ...grpc.CallOption) (*SendMessageReply, error)
-	// 发送群聊消息
-	SendGroupMessage(ctx context.Context, in *SendGroupMessageRequest, opts ...grpc.CallOption) (*SendGroupMessageReply, error)
+	// 发送小群聊消息
+	SendGroupMessage(ctx context.Context, in *SendSmallGroupMessageRequest, opts ...grpc.CallOption) (*SendMessageReply, error)
+	// 发送房间广播消息
+	SendRoomMessage(ctx context.Context, in *SendRoomMessageRequest, opts ...grpc.CallOption) (*SendMessageReply, error)
 }
 
 type chatServiceClient struct {
@@ -51,10 +54,20 @@ func (c *chatServiceClient) SendMessage(ctx context.Context, in *SendMessageRequ
 	return out, nil
 }
 
-func (c *chatServiceClient) SendGroupMessage(ctx context.Context, in *SendGroupMessageRequest, opts ...grpc.CallOption) (*SendGroupMessageReply, error) {
+func (c *chatServiceClient) SendGroupMessage(ctx context.Context, in *SendSmallGroupMessageRequest, opts ...grpc.CallOption) (*SendMessageReply, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(SendGroupMessageReply)
+	out := new(SendMessageReply)
 	err := c.cc.Invoke(ctx, ChatService_SendGroupMessage_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *chatServiceClient) SendRoomMessage(ctx context.Context, in *SendRoomMessageRequest, opts ...grpc.CallOption) (*SendMessageReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SendMessageReply)
+	err := c.cc.Invoke(ctx, ChatService_SendRoomMessage_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -67,8 +80,10 @@ func (c *chatServiceClient) SendGroupMessage(ctx context.Context, in *SendGroupM
 type ChatServiceServer interface {
 	// 发送单聊消息
 	SendMessage(context.Context, *SendMessageRequest) (*SendMessageReply, error)
-	// 发送群聊消息
-	SendGroupMessage(context.Context, *SendGroupMessageRequest) (*SendGroupMessageReply, error)
+	// 发送小群聊消息
+	SendGroupMessage(context.Context, *SendSmallGroupMessageRequest) (*SendMessageReply, error)
+	// 发送房间广播消息
+	SendRoomMessage(context.Context, *SendRoomMessageRequest) (*SendMessageReply, error)
 	mustEmbedUnimplementedChatServiceServer()
 }
 
@@ -82,8 +97,11 @@ type UnimplementedChatServiceServer struct{}
 func (UnimplementedChatServiceServer) SendMessage(context.Context, *SendMessageRequest) (*SendMessageReply, error) {
 	return nil, status.Error(codes.Unimplemented, "method SendMessage not implemented")
 }
-func (UnimplementedChatServiceServer) SendGroupMessage(context.Context, *SendGroupMessageRequest) (*SendGroupMessageReply, error) {
+func (UnimplementedChatServiceServer) SendGroupMessage(context.Context, *SendSmallGroupMessageRequest) (*SendMessageReply, error) {
 	return nil, status.Error(codes.Unimplemented, "method SendGroupMessage not implemented")
+}
+func (UnimplementedChatServiceServer) SendRoomMessage(context.Context, *SendRoomMessageRequest) (*SendMessageReply, error) {
+	return nil, status.Error(codes.Unimplemented, "method SendRoomMessage not implemented")
 }
 func (UnimplementedChatServiceServer) mustEmbedUnimplementedChatServiceServer() {}
 func (UnimplementedChatServiceServer) testEmbeddedByValue()                     {}
@@ -125,7 +143,7 @@ func _ChatService_SendMessage_Handler(srv interface{}, ctx context.Context, dec 
 }
 
 func _ChatService_SendGroupMessage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(SendGroupMessageRequest)
+	in := new(SendSmallGroupMessageRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -137,7 +155,25 @@ func _ChatService_SendGroupMessage_Handler(srv interface{}, ctx context.Context,
 		FullMethod: ChatService_SendGroupMessage_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ChatServiceServer).SendGroupMessage(ctx, req.(*SendGroupMessageRequest))
+		return srv.(ChatServiceServer).SendGroupMessage(ctx, req.(*SendSmallGroupMessageRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ChatService_SendRoomMessage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SendRoomMessageRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ChatServiceServer).SendRoomMessage(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ChatService_SendRoomMessage_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ChatServiceServer).SendRoomMessage(ctx, req.(*SendRoomMessageRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -156,6 +192,10 @@ var ChatService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SendGroupMessage",
 			Handler:    _ChatService_SendGroupMessage_Handler,
+		},
+		{
+			MethodName: "SendRoomMessage",
+			Handler:    _ChatService_SendRoomMessage_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

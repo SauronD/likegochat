@@ -19,10 +19,9 @@ type SendMessageReq struct {
 }
 
 type SendGroupMessageReq struct {
-	GroupID   int64  `json:"group_id"`
-	Content   string `json:"content"`
-	MsgType   int32  `json:"msg_type"`
-	RouteMode int32  `json:"route_mode"`
+	GroupID int64  `json:"group_id"`
+	Content string `json:"content"`
+	MsgType int32  `json:"msg_type"`
 }
 
 func (h *APIHandler) SendMessage(w http.ResponseWriter, r *http.Request) {
@@ -110,20 +109,14 @@ func (h *APIHandler) SendGroupMessage(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
-	// 兼容两种消息发送
-	if !(reqBody.RouteMode == 1 || reqBody.RouteMode == 2) {
-		http.Error(w, "invalid group message type", http.StatusBadRequest)
-		return
-	}
 
 	chatCtx, chatCancel := context.WithTimeout(r.Context(), 3*time.Second)
 	defer chatCancel()
-	reply, err := h.ChatClient.SendGroupMessage(chatCtx, &chatpb.SendGroupMessageRequest{
-		FromUserId:  currentUserID,
-		GroupId:     reqBody.GroupID,
-		Content:     []byte(reqBody.Content),
-		MsgType:     reqBody.MsgType,
-		RoutingMode: reqBody.RouteMode,
+	reply, err := h.ChatClient.SendGroupMessage(chatCtx, &chatpb.SendSmallGroupMessageRequest{
+		FromUserId: currentUserID,
+		GroupId:    reqBody.GroupID,
+		Content:    []byte(reqBody.Content),
+		MsgType:    reqBody.MsgType,
 	})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

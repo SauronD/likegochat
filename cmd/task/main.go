@@ -68,6 +68,7 @@ func main() {
 	defer cancel()
 	singlechat := task.NewSingleChatHandler(chatConsumer)
 	groupchat := task.NewGroupChatHandler(chatConsumer)
+	// 每个connect协程
 	go consumeLoop(ctx, singleCG, cfg.Kafka.ChatTopic, singlechat)
 	go consumeLoop(ctx, groupCG, cfg.Kafka.GroupChatTopic, groupchat)
 

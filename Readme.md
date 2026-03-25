@@ -1,5 +1,13 @@
 
+登录机制：
+1、/api/login登录拿到sessionID
+2、用sessionID去连接ws，并将userID-connect_serverID添加到redis中
+
+
+
+
 群聊机制：
+
 
 1、小群聊天
 本质单人聊天广播：需要task层查到所有人连接的connect节点并进行推送

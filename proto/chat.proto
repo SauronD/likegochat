@@ -5,8 +5,10 @@ option go_package = "./internal/common/proto/chatpb";
 service ChatService {
   // 发送单聊消息
   rpc SendMessage(SendMessageRequest) returns (SendMessageReply);
-  // 发送群聊消息
-  rpc SendGroupMessage(SendGroupMessageRequest) returns (SendGroupMessageReply);
+  // 发送小群聊消息
+  rpc SendGroupMessage(SendSmallGroupMessageRequest) returns (SendMessageReply);
+  // 发送房间广播消息
+  rpc SendRoomMessage(SendRoomMessageRequest)returns (SendMessageReply);
 }
 
 message SendMessageRequest {
@@ -20,19 +22,21 @@ message SendMessageReply {
   int64 msg_id = 1; // Logic层生成的全局唯一消息ID
   int64 timestamp = 2; // 服务器接收时间戳
 }
-
-message SendGroupMessageRequest {
+// 小群消息发送请求
+message SendSmallGroupMessageRequest {
   int64 from_user_id = 1;
   int64 group_id = 2;
   bytes content = 3;
   int32 msg_type = 4;
-  int32 routing_mode = 5;
+}
+// 房间消息发送请求
+message SendRoomMessageRequest {
+  int64 from_user_id = 1;
+  int64 room_id = 2;
+  bytes content = 3;
+  int32 msg_type = 4;
 }
 
-message SendGroupMessageReply {
-  int64 msg_id = 1;
-  int64 timestamp = 2;
-}
 // 单聊物理消息
 message Message {
   int64 msg_id = 1;
@@ -53,3 +57,4 @@ message GroupMessage {
   int64 create_time = 6;
   int32 routing_mode = 7;
 }
+

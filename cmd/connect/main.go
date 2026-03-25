@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"log"
 	"net"
@@ -53,6 +54,16 @@ func main() {
 		ServerID: connectConfig.ConnectServerAddr,
 	}
 
+	// 注册当前 connect 节点，供 Task 层大群广播时查询
+	if err := registry.RegisterConnectNode(context.Background()); err != nil {
+		log.Fatalf("redis注册connect节点失败: %v", err)
+	}
+	defer func() {
+		if err := registry.UnregisterConnectNode(context.Background()); err != nil {
+			log.Printf("redis注销connect节点失败: %v", err)
+		}
+	}()
+
 	// 3. 建立连接至 Logic 层的 gRPC 客户端 (用于鉴权)
 	authClient, logicConn, err := common.NewAuthClient(cfg.Logic.GRPCAddr)
 	if err != nil {
@@ -97,6 +108,6 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	log.Println("收到退出信号，系统正在关闭...")
+	log.Println("收到退出信号，节点正在关闭...")
 	// 此处后续可补充针对已建立 WebSocket 的清理和断开逻辑
 }

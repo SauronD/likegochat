@@ -189,6 +189,7 @@ type LoginReply struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	SessionId     string                 `protobuf:"bytes,2,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	SmallGroups   []*SmallGroupInfo      `protobuf:"bytes,3,rep,name=small_groups,json=smallGroups,proto3" json:"small_groups,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -235,6 +236,13 @@ func (x *LoginReply) GetSessionId() string {
 		return x.SessionId
 	}
 	return ""
+}
+
+func (x *LoginReply) GetSmallGroups() []*SmallGroupInfo {
+	if x != nil {
+		return x.SmallGroups
+	}
+	return nil
 }
 
 type VerifyRequest struct {
@@ -413,6 +421,66 @@ func (x *LogoutReply) GetOk() bool {
 	return false
 }
 
+type SmallGroupInfo struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	GroupId       int64                  `protobuf:"varint,1,opt,name=group_id,json=groupId,proto3" json:"group_id,omitempty"`
+	GroupName     string                 `protobuf:"bytes,2,opt,name=group_name,json=groupName,proto3" json:"group_name,omitempty"`
+	MemberCount   int32                  `protobuf:"varint,3,opt,name=member_count,json=memberCount,proto3" json:"member_count,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SmallGroupInfo) Reset() {
+	*x = SmallGroupInfo{}
+	mi := &file_proto_auth_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SmallGroupInfo) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SmallGroupInfo) ProtoMessage() {}
+
+func (x *SmallGroupInfo) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_auth_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SmallGroupInfo.ProtoReflect.Descriptor instead.
+func (*SmallGroupInfo) Descriptor() ([]byte, []int) {
+	return file_proto_auth_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *SmallGroupInfo) GetGroupId() int64 {
+	if x != nil {
+		return x.GroupId
+	}
+	return 0
+}
+
+func (x *SmallGroupInfo) GetGroupName() string {
+	if x != nil {
+		return x.GroupName
+	}
+	return ""
+}
+
+func (x *SmallGroupInfo) GetMemberCount() int32 {
+	if x != nil {
+		return x.MemberCount
+	}
+	return 0
+}
+
 var File_proto_auth_proto protoreflect.FileDescriptor
 
 const file_proto_auth_proto_rawDesc = "" +
@@ -428,12 +496,13 @@ const file_proto_auth_proto_rawDesc = "" +
 	"\bpassword\x18\x02 \x01(\tR\bpassword\x12\x0e\n" +
 	"\x02ip\x18\x03 \x01(\tR\x02ip\x12\x1d\n" +
 	"\n" +
-	"user_agent\x18\x04 \x01(\tR\tuserAgent\"D\n" +
+	"user_agent\x18\x04 \x01(\tR\tuserAgent\"}\n" +
 	"\n" +
 	"LoginReply\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x1d\n" +
 	"\n" +
-	"session_id\x18\x02 \x01(\tR\tsessionId\".\n" +
+	"session_id\x18\x02 \x01(\tR\tsessionId\x127\n" +
+	"\fsmall_groups\x18\x03 \x03(\v2\x14.auth.SmallGroupInfoR\vsmallGroups\".\n" +
 	"\rVerifyRequest\x12\x1d\n" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tR\tsessionId\"&\n" +
@@ -443,7 +512,12 @@ const file_proto_auth_proto_rawDesc = "" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tR\tsessionId\"\x1d\n" +
 	"\vLogoutReply\x12\x0e\n" +
-	"\x02ok\x18\x01 \x01(\bR\x02ok2\xd8\x01\n" +
+	"\x02ok\x18\x01 \x01(\bR\x02ok\"m\n" +
+	"\x0eSmallGroupInfo\x12\x19\n" +
+	"\bgroup_id\x18\x01 \x01(\x03R\agroupId\x12\x1d\n" +
+	"\n" +
+	"group_name\x18\x02 \x01(\tR\tgroupName\x12!\n" +
+	"\fmember_count\x18\x03 \x01(\x05R\vmemberCount2\xd8\x01\n" +
 	"\vAuthService\x126\n" +
 	"\bRegister\x12\x15.auth.RegisterRequest\x1a\x13.auth.RegisterReply\x12-\n" +
 	"\x05Login\x12\x12.auth.LoginRequest\x1a\x10.auth.LoginReply\x120\n" +
@@ -462,7 +536,7 @@ func file_proto_auth_proto_rawDescGZIP() []byte {
 	return file_proto_auth_proto_rawDescData
 }
 
-var file_proto_auth_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_proto_auth_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_proto_auth_proto_goTypes = []any{
 	(*RegisterRequest)(nil), // 0: auth.RegisterRequest
 	(*RegisterReply)(nil),   // 1: auth.RegisterReply
@@ -472,21 +546,23 @@ var file_proto_auth_proto_goTypes = []any{
 	(*VerifyReply)(nil),     // 5: auth.VerifyReply
 	(*LogoutRequest)(nil),   // 6: auth.LogoutRequest
 	(*LogoutReply)(nil),     // 7: auth.LogoutReply
+	(*SmallGroupInfo)(nil),  // 8: auth.SmallGroupInfo
 }
 var file_proto_auth_proto_depIdxs = []int32{
-	0, // 0: auth.AuthService.Register:input_type -> auth.RegisterRequest
-	2, // 1: auth.AuthService.Login:input_type -> auth.LoginRequest
-	4, // 2: auth.AuthService.Verify:input_type -> auth.VerifyRequest
-	6, // 3: auth.AuthService.Logout:input_type -> auth.LogoutRequest
-	1, // 4: auth.AuthService.Register:output_type -> auth.RegisterReply
-	3, // 5: auth.AuthService.Login:output_type -> auth.LoginReply
-	5, // 6: auth.AuthService.Verify:output_type -> auth.VerifyReply
-	7, // 7: auth.AuthService.Logout:output_type -> auth.LogoutReply
-	4, // [4:8] is the sub-list for method output_type
-	0, // [0:4] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	8, // 0: auth.LoginReply.small_groups:type_name -> auth.SmallGroupInfo
+	0, // 1: auth.AuthService.Register:input_type -> auth.RegisterRequest
+	2, // 2: auth.AuthService.Login:input_type -> auth.LoginRequest
+	4, // 3: auth.AuthService.Verify:input_type -> auth.VerifyRequest
+	6, // 4: auth.AuthService.Logout:input_type -> auth.LogoutRequest
+	1, // 5: auth.AuthService.Register:output_type -> auth.RegisterReply
+	3, // 6: auth.AuthService.Login:output_type -> auth.LoginReply
+	5, // 7: auth.AuthService.Verify:output_type -> auth.VerifyReply
+	7, // 8: auth.AuthService.Logout:output_type -> auth.LogoutReply
+	5, // [5:9] is the sub-list for method output_type
+	1, // [1:5] is the sub-list for method input_type
+	1, // [1:1] is the sub-list for extension type_name
+	1, // [1:1] is the sub-list for extension extendee
+	0, // [0:1] is the sub-list for field type_name
 }
 
 func init() { file_proto_auth_proto_init() }
@@ -500,7 +576,7 @@ func file_proto_auth_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_auth_proto_rawDesc), len(file_proto_auth_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   8,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

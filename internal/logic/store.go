@@ -15,6 +15,8 @@ import (
 const (
 	redisSessPrefix string = "sess:"
 	redisUserPrefix string = "user_sess:"
+	// group的所有成员，用于小群聊天的鉴权和小群在线用户的筛选
+	redisGroupUserPrefix string = "group_members"
 )
 
 type Store struct {
@@ -188,8 +190,9 @@ func (s *Store) DeleteSession(ctx context.Context, sessionID string) error {
 	).Err()
 }
 
-// 查询userID是否在groupID群里
+// 查询userID是否在groupID群里，注意
 func (s *Store) IsGroupMember(ctx context.Context, groupID, userID int64) (bool, error) {
-	key := fmt.Sprintf("group_members:%d", groupID)
+	key := fmt.Sprintf("%s%d", redisGroupUserPrefix, groupID)
+	// set不存在的情况需要查一次MySQL加载回来：注意singleflight减少MySQL并发压力
 	return s.RDB.SIsMember(ctx, key, userID).Result()
 }

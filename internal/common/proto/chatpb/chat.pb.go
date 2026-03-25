@@ -141,31 +141,31 @@ func (x *SendMessageReply) GetTimestamp() int64 {
 	return 0
 }
 
-type SendGroupMessageRequest struct {
+// 小群消息发送请求
+type SendSmallGroupMessageRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	FromUserId    int64                  `protobuf:"varint,1,opt,name=from_user_id,json=fromUserId,proto3" json:"from_user_id,omitempty"`
 	GroupId       int64                  `protobuf:"varint,2,opt,name=group_id,json=groupId,proto3" json:"group_id,omitempty"`
 	Content       []byte                 `protobuf:"bytes,3,opt,name=content,proto3" json:"content,omitempty"`
 	MsgType       int32                  `protobuf:"varint,4,opt,name=msg_type,json=msgType,proto3" json:"msg_type,omitempty"`
-	RoutingMode   int32                  `protobuf:"varint,5,opt,name=routing_mode,json=routingMode,proto3" json:"routing_mode,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *SendGroupMessageRequest) Reset() {
-	*x = SendGroupMessageRequest{}
+func (x *SendSmallGroupMessageRequest) Reset() {
+	*x = SendSmallGroupMessageRequest{}
 	mi := &file_proto_chat_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *SendGroupMessageRequest) String() string {
+func (x *SendSmallGroupMessageRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*SendGroupMessageRequest) ProtoMessage() {}
+func (*SendSmallGroupMessageRequest) ProtoMessage() {}
 
-func (x *SendGroupMessageRequest) ProtoReflect() protoreflect.Message {
+func (x *SendSmallGroupMessageRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_proto_chat_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -177,68 +177,64 @@ func (x *SendGroupMessageRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use SendGroupMessageRequest.ProtoReflect.Descriptor instead.
-func (*SendGroupMessageRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use SendSmallGroupMessageRequest.ProtoReflect.Descriptor instead.
+func (*SendSmallGroupMessageRequest) Descriptor() ([]byte, []int) {
 	return file_proto_chat_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *SendGroupMessageRequest) GetFromUserId() int64 {
+func (x *SendSmallGroupMessageRequest) GetFromUserId() int64 {
 	if x != nil {
 		return x.FromUserId
 	}
 	return 0
 }
 
-func (x *SendGroupMessageRequest) GetGroupId() int64 {
+func (x *SendSmallGroupMessageRequest) GetGroupId() int64 {
 	if x != nil {
 		return x.GroupId
 	}
 	return 0
 }
 
-func (x *SendGroupMessageRequest) GetContent() []byte {
+func (x *SendSmallGroupMessageRequest) GetContent() []byte {
 	if x != nil {
 		return x.Content
 	}
 	return nil
 }
 
-func (x *SendGroupMessageRequest) GetMsgType() int32 {
+func (x *SendSmallGroupMessageRequest) GetMsgType() int32 {
 	if x != nil {
 		return x.MsgType
 	}
 	return 0
 }
 
-func (x *SendGroupMessageRequest) GetRoutingMode() int32 {
-	if x != nil {
-		return x.RoutingMode
-	}
-	return 0
-}
-
-type SendGroupMessageReply struct {
+// 房间消息发送请求
+type SendRoomMessageRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	MsgId         int64                  `protobuf:"varint,1,opt,name=msg_id,json=msgId,proto3" json:"msg_id,omitempty"`
-	Timestamp     int64                  `protobuf:"varint,2,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	FromUserId    int64                  `protobuf:"varint,1,opt,name=from_user_id,json=fromUserId,proto3" json:"from_user_id,omitempty"`
+	RoomId        int64                  `protobuf:"varint,2,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	Content       []byte                 `protobuf:"bytes,3,opt,name=content,proto3" json:"content,omitempty"`
+	MsgType       int32                  `protobuf:"varint,4,opt,name=msg_type,json=msgType,proto3" json:"msg_type,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *SendGroupMessageReply) Reset() {
-	*x = SendGroupMessageReply{}
+func (x *SendRoomMessageRequest) Reset() {
+	*x = SendRoomMessageRequest{}
 	mi := &file_proto_chat_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *SendGroupMessageReply) String() string {
+func (x *SendRoomMessageRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*SendGroupMessageReply) ProtoMessage() {}
+func (*SendRoomMessageRequest) ProtoMessage() {}
 
-func (x *SendGroupMessageReply) ProtoReflect() protoreflect.Message {
+func (x *SendRoomMessageRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_proto_chat_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -250,21 +246,35 @@ func (x *SendGroupMessageReply) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use SendGroupMessageReply.ProtoReflect.Descriptor instead.
-func (*SendGroupMessageReply) Descriptor() ([]byte, []int) {
+// Deprecated: Use SendRoomMessageRequest.ProtoReflect.Descriptor instead.
+func (*SendRoomMessageRequest) Descriptor() ([]byte, []int) {
 	return file_proto_chat_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *SendGroupMessageReply) GetMsgId() int64 {
+func (x *SendRoomMessageRequest) GetFromUserId() int64 {
 	if x != nil {
-		return x.MsgId
+		return x.FromUserId
 	}
 	return 0
 }
 
-func (x *SendGroupMessageReply) GetTimestamp() int64 {
+func (x *SendRoomMessageRequest) GetRoomId() int64 {
 	if x != nil {
-		return x.Timestamp
+		return x.RoomId
+	}
+	return 0
+}
+
+func (x *SendRoomMessageRequest) GetContent() []byte {
+	if x != nil {
+		return x.Content
+	}
+	return nil
+}
+
+func (x *SendRoomMessageRequest) GetMsgType() int32 {
+	if x != nil {
+		return x.MsgType
 	}
 	return 0
 }
@@ -461,17 +471,19 @@ const file_proto_chat_proto_rawDesc = "" +
 	"\bmsg_type\x18\x04 \x01(\x05R\amsgType\"G\n" +
 	"\x10SendMessageReply\x12\x15\n" +
 	"\x06msg_id\x18\x01 \x01(\x03R\x05msgId\x12\x1c\n" +
-	"\ttimestamp\x18\x02 \x01(\x03R\ttimestamp\"\xae\x01\n" +
-	"\x17SendGroupMessageRequest\x12 \n" +
+	"\ttimestamp\x18\x02 \x01(\x03R\ttimestamp\"\x90\x01\n" +
+	"\x1cSendSmallGroupMessageRequest\x12 \n" +
 	"\ffrom_user_id\x18\x01 \x01(\x03R\n" +
 	"fromUserId\x12\x19\n" +
 	"\bgroup_id\x18\x02 \x01(\x03R\agroupId\x12\x18\n" +
 	"\acontent\x18\x03 \x01(\fR\acontent\x12\x19\n" +
-	"\bmsg_type\x18\x04 \x01(\x05R\amsgType\x12!\n" +
-	"\frouting_mode\x18\x05 \x01(\x05R\vroutingMode\"L\n" +
-	"\x15SendGroupMessageReply\x12\x15\n" +
-	"\x06msg_id\x18\x01 \x01(\x03R\x05msgId\x12\x1c\n" +
-	"\ttimestamp\x18\x02 \x01(\x03R\ttimestamp\"\xb6\x01\n" +
+	"\bmsg_type\x18\x04 \x01(\x05R\amsgType\"\x88\x01\n" +
+	"\x16SendRoomMessageRequest\x12 \n" +
+	"\ffrom_user_id\x18\x01 \x01(\x03R\n" +
+	"fromUserId\x12\x17\n" +
+	"\aroom_id\x18\x02 \x01(\x03R\x06roomId\x12\x18\n" +
+	"\acontent\x18\x03 \x01(\fR\acontent\x12\x19\n" +
+	"\bmsg_type\x18\x04 \x01(\x05R\amsgType\"\xb6\x01\n" +
 	"\aMessage\x12\x15\n" +
 	"\x06msg_id\x18\x01 \x01(\x03R\x05msgId\x12 \n" +
 	"\ffrom_user_id\x18\x02 \x01(\x03R\n" +
@@ -491,10 +503,11 @@ const file_proto_chat_proto_rawDesc = "" +
 	"\bmsg_type\x18\x05 \x01(\x05R\amsgType\x12\x1f\n" +
 	"\vcreate_time\x18\x06 \x01(\x03R\n" +
 	"createTime\x12!\n" +
-	"\frouting_mode\x18\a \x01(\x05R\vroutingMode2\xa6\x01\n" +
+	"\frouting_mode\x18\a \x01(\x05R\vroutingMode2\xf3\x01\n" +
 	"\vChatService\x12C\n" +
 	"\vSendMessage\x12\x1a.chatpb.SendMessageRequest\x1a\x18.chatpb.SendMessageReply\x12R\n" +
-	"\x10SendGroupMessage\x12\x1f.chatpb.SendGroupMessageRequest\x1a\x1d.chatpb.SendGroupMessageReplyB Z\x1e./internal/common/proto/chatpbb\x06proto3"
+	"\x10SendGroupMessage\x12$.chatpb.SendSmallGroupMessageRequest\x1a\x18.chatpb.SendMessageReply\x12K\n" +
+	"\x0fSendRoomMessage\x12\x1e.chatpb.SendRoomMessageRequest\x1a\x18.chatpb.SendMessageReplyB Z\x1e./internal/common/proto/chatpbb\x06proto3"
 
 var (
 	file_proto_chat_proto_rawDescOnce sync.Once
@@ -510,20 +523,22 @@ func file_proto_chat_proto_rawDescGZIP() []byte {
 
 var file_proto_chat_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_proto_chat_proto_goTypes = []any{
-	(*SendMessageRequest)(nil),      // 0: chatpb.SendMessageRequest
-	(*SendMessageReply)(nil),        // 1: chatpb.SendMessageReply
-	(*SendGroupMessageRequest)(nil), // 2: chatpb.SendGroupMessageRequest
-	(*SendGroupMessageReply)(nil),   // 3: chatpb.SendGroupMessageReply
-	(*Message)(nil),                 // 4: chatpb.Message
-	(*GroupMessage)(nil),            // 5: chatpb.GroupMessage
+	(*SendMessageRequest)(nil),           // 0: chatpb.SendMessageRequest
+	(*SendMessageReply)(nil),             // 1: chatpb.SendMessageReply
+	(*SendSmallGroupMessageRequest)(nil), // 2: chatpb.SendSmallGroupMessageRequest
+	(*SendRoomMessageRequest)(nil),       // 3: chatpb.SendRoomMessageRequest
+	(*Message)(nil),                      // 4: chatpb.Message
+	(*GroupMessage)(nil),                 // 5: chatpb.GroupMessage
 }
 var file_proto_chat_proto_depIdxs = []int32{
 	0, // 0: chatpb.ChatService.SendMessage:input_type -> chatpb.SendMessageRequest
-	2, // 1: chatpb.ChatService.SendGroupMessage:input_type -> chatpb.SendGroupMessageRequest
-	1, // 2: chatpb.ChatService.SendMessage:output_type -> chatpb.SendMessageReply
-	3, // 3: chatpb.ChatService.SendGroupMessage:output_type -> chatpb.SendGroupMessageReply
-	2, // [2:4] is the sub-list for method output_type
-	0, // [0:2] is the sub-list for method input_type
+	2, // 1: chatpb.ChatService.SendGroupMessage:input_type -> chatpb.SendSmallGroupMessageRequest
+	3, // 2: chatpb.ChatService.SendRoomMessage:input_type -> chatpb.SendRoomMessageRequest
+	1, // 3: chatpb.ChatService.SendMessage:output_type -> chatpb.SendMessageReply
+	1, // 4: chatpb.ChatService.SendGroupMessage:output_type -> chatpb.SendMessageReply
+	1, // 5: chatpb.ChatService.SendRoomMessage:output_type -> chatpb.SendMessageReply
+	3, // [3:6] is the sub-list for method output_type
+	0, // [0:3] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name
 	0, // [0:0] is the sub-list for extension extendee
 	0, // [0:0] is the sub-list for field type_name

@@ -22,11 +22,12 @@ import (
 
 const (
 	// 每个用户-连接的connect节点
-	userServerKeyPrefix = "user_server:"
-	// 每个群的所有在线用户
-	groupMembersKeyPrefix = "group_members:"
+	userServerKeyPrefix string = "user_server:"
 	// 所有在线的connect节点
-	groupNodesKeyPrefix = "group_nodes:"
+	connectNodesKeyPrefix string = "connect_nodes"
+
+	groupMembersKeyPrefix string = "group_members"
+
 	// 小群走本地推送：查群的所有存活用户，再查每个用户连接的connect节点进行发送
 	RoutingModeSmall int32 = 1
 	// 大群节点广播：推送到所有connect节点上，每个节点通过groupid查到维护的bucket内并推送到所有连接的ws
@@ -161,11 +162,18 @@ func (c *ChatConsumer) handleGroupMessage(kMsg *sarama.ConsumerMessage) error {
 	}
 }
 func (c *ChatConsumer) handleSmallGroupMessage(ctx context.Context, gm *chatpb.GroupMessage, payload []byte) error {
-	// 小群：Redis 查所有成员，再按 user_server:<uid> 精准推送
-	memberIDs, err := c.loadGroupMemberIDs(ctx, gm.GroupId)
+	// 小群：Redis查群的所有在线成员，再按 user_server:<uid> 精准推送
+	memberIDs, err := c.loadGroupOnlineMemberIDs(ctx, gm.GroupId)
 	if err != nil {
 		return err
 	}
+
+	// memberIDs为空不一定是没有在线用户，也有可能是redis的LRU删除了这个集合，因此：
+	// 调logic grpc找到群的所有用户，在redis里找到所有存活用户写回redis:
+	if len(memberIDs) == 0 {
+		// logic处理
+	}
+
 	g, gctx := errgroup.WithContext(ctx)
 
 	sem := make(chan struct{}, 100)
@@ -198,8 +206,8 @@ func (c *ChatConsumer) handleSmallGroupMessage(ctx context.Context, gm *chatpb.G
 }
 
 func (c *ChatConsumer) handleLargeGroupMessage(ctx context.Context, gm *chatpb.GroupMessage, payload []byte) error {
-	// 大群：只查 group_nodes，不查 group_members
-	nodeIDs, err := c.loadGroupNodeIDs(ctx, gm.GroupId)
+	// 查询所有connect节点进行广播
+	nodeIDs, err := c.loadGroupNodeIDs(ctx)
 	if err != nil {
 		return err
 	}
@@ -292,23 +300,60 @@ func (c *ChatConsumer) getUserServerID(ctx context.Context, userID int64) (strin
 	return serverID, err
 }
 
-func (c *ChatConsumer) loadGroupMemberIDs(ctx context.Context, groupID int64) ([]int64, error) {
-	key := fmt.Sprintf("%s%d", groupMembersKeyPrefix, groupID)
-	raw, err := c.RDB.SMembers(ctx, key).Result()
+// 查找一个群的所有在线用户：一个群的所有成员+用户是否在线进行判断
+func (c *ChatConsumer) loadGroupOnlineMemberIDs(ctx context.Context, groupID int64) ([]int64, error) {
+	memberKey := fmt.Sprintf("%s%d", groupMembersKeyPrefix, groupID)
+	rawMembers, err := c.RDB.SMembers(ctx, memberKey).Result()
 	if err != nil {
 		return nil, err
 	}
-	ids := make([]int64, 0, len(raw))
-	for _, s := range raw {
-		id, err := strconv.ParseInt(s, 10, 64)
-		if err == nil {
-			ids = append(ids, id)
-		}
+	if len(rawMembers) == 0 {
+		return []int64{}, nil
 	}
-	return ids, nil
+
+	userIDs := make([]int64, 0, len(rawMembers))
+	routeKeys := make([]string, 0, len(rawMembers))
+
+	for _, s := range rawMembers {
+		uid, err := strconv.ParseInt(s, 10, 64)
+		if err != nil {
+			continue
+		}
+		userIDs = append(userIDs, uid)
+		routeKeys = append(routeKeys, fmt.Sprintf("%s%d", userServerKeyPrefix, uid))
+	}
+
+	if len(routeKeys) == 0 {
+		return []int64{}, nil
+	}
+
+	// 一次 MGET 批量判断在线态，避免 N 次 GET
+	vals, err := c.RDB.MGet(ctx, routeKeys...).Result()
+	if err != nil {
+		return nil, err
+	}
+
+	onlineIDs := make([]int64, 0, len(userIDs))
+	for i, v := range vals {
+		if v == nil {
+			continue // user_server:<uid> 不存在，离线
+		}
+		switch sv := v.(type) {
+		case string:
+			if sv == "" {
+				continue
+			}
+		case []byte:
+			if len(sv) == 0 {
+				continue
+			}
+		}
+		onlineIDs = append(onlineIDs, userIDs[i])
+	}
+
+	return onlineIDs, nil
 }
 
-func (c *ChatConsumer) loadGroupNodeIDs(ctx context.Context, groupID int64) ([]string, error) {
-	key := fmt.Sprintf("%s%d", groupNodesKeyPrefix, groupID)
-	return c.RDB.SMembers(ctx, key).Result()
+func (c *ChatConsumer) loadGroupNodeIDs(ctx context.Context) ([]string, error) {
+	return c.RDB.SMembers(ctx, connectNodesKeyPrefix).Result()
 }

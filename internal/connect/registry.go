@@ -9,10 +9,10 @@ import (
 )
 
 const (
+	// 在线用户绑定的connect节点：用于消息推送和用户是否在线
 	UserServerKeyPrefix = "user_server:"
-	UserGroupsKeyPrefix = "user_groups:"
-	GroupNodesKeyPrefix = "group_nodes:"
-	GroupNodeRefPrefix  = "group_node_ref:"
+	// 所有在线connect节点
+	ConnectNodesKeyPrefix = "connect_nodes"
 )
 
 type Registry struct {
@@ -32,4 +32,20 @@ func (r *Registry) RegisterUser(ctx context.Context, userID int64) error {
 func (r *Registry) UnregisterUser(ctx context.Context, userID int64) error {
 	key := fmt.Sprintf("%s%d", UserServerKeyPrefix, userID)
 	return r.RDB.Del(ctx, key).Err()
+}
+
+// RegisterConnectNode connect节点启动，注册到redis set中
+func (r *Registry) RegisterConnectNode(ctx context.Context) error {
+	if r.ServerID == "" {
+		return fmt.Errorf("empty server id")
+	}
+	return r.RDB.SAdd(ctx, ConnectNodesKeyPrefix, r.ServerID).Err()
+}
+
+// UnregisterConnectNode connect节点关闭，从redis set中移除
+func (r *Registry) UnregisterConnectNode(ctx context.Context) error {
+	if r.ServerID == "" {
+		return nil
+	}
+	return r.RDB.SRem(ctx, ConnectNodesKeyPrefix, r.ServerID).Err()
 }
