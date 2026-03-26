@@ -50,7 +50,8 @@ func (p *ConnectClientPool) GetClient(serverID string) (connectpb.ConnectService
 		return entry.client, nil
 	}
 
-	// 4. 建立底层 TCP/HTTP2 连接
+	// 4. 懒惰加载，查到时才真正建立连接
+	// 建立底层 TCP/HTTP2 连接
 	client, conn, err := common.NewConnectClinet(serverID)
 	if err != nil {
 		return nil, err

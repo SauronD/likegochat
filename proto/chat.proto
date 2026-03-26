@@ -55,6 +55,5 @@ message GroupMessage {
   bytes content = 4;
   int32 msg_type = 5;
   int64 create_time = 6;
-  int32 routing_mode = 7;
 }
 

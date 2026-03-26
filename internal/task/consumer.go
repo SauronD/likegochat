@@ -25,7 +25,7 @@ const (
 	userServerKeyPrefix string = "user_server:"
 	// 所有在线的connect节点
 	connectNodesKeyPrefix string = "connect_nodes"
-
+	// 一个群的所有用户
 	groupMembersKeyPrefix string = "group_members"
 
 	// 小群走本地推送：查群的所有存活用户，再查每个用户连接的connect节点进行发送
@@ -39,8 +39,7 @@ type ChatConsumer struct {
 	DB  *gorm.DB
 	RDB *redis.Client
 	// connect层grpc客户端
-	ClientPool           *ConnectClientPool
-	SmallGroupMaxMembers int
+	ClientPool *ConnectClientPool
 }
 type SingleChatHander struct {
 	Base *ChatConsumer
@@ -131,9 +130,110 @@ func (h *GroupChatHandler) Cleanup(sarama.ConsumerGroupSession) error {
 	log.Println("[group] Kafka 消费者正在退出清理")
 	return nil
 }
+
+// 消费者处理标准流程：
 func (h *GroupChatHandler) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
+
+	ctx := session.Context()
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case msg, ok := <-claim.Messages():
+			if !ok {
+				return nil
+			}
+			cctx, cancel := context.WithTimeout(session.Context(), 2*time.Second)
+
+			if err := h.Base.handleGroupMessage(cctx, msg); err != nil {
+				log.Printf("[group] 消息处理失败 topic=%s partition=%d offset=%d err=%v",
+					msg.Topic, msg.Partition, msg.Offset, err)
+			}
+			session.MarkMessage(msg, "")
+			cancel()
+		}
+	}
+}
+
+// 小群聊天处理
+func (c *ChatConsumer) handleGroupMessage(ctx context.Context, kMsg *sarama.ConsumerMessage) error {
+	var gm chatpb.GroupMessage
+	if err := proto.Unmarshal(kMsg.Value, &gm); err != nil {
+		return err
+	}
+	return c.handleSmallGroupMessage(ctx, &gm, kMsg.Value)
+}
+func (c *ChatConsumer) handleSmallGroupMessage(ctx context.Context, gm *chatpb.GroupMessage, payload []byte) error {
+	// 小群：Redis查群的所有在线成员，再按 user_server:<uid> 精准推送
+	nodeTargetMap, err := c.loadGroupOnlineMemberIDs(ctx, gm.GroupId)
+	if err != nil {
+		return err
+	}
+
+	// memberIDs为空不一定是没有在线用户，也有可能是redis的LRU删除了这个集合，因此：
+	// 调logic grpc找到群的所有用户，在redis里找到所有存活用户写回redis:
+	if len(nodeTargetMap) == 0 {
+		// logic处理
+	}
+
+	g, gctx := errgroup.WithContext(ctx)
+	// 小群的人数上限应该是500
+	sem := make(chan struct{}, 100)
+
+	for srvID, targetUIDs := range nodeTargetMap {
+		serverID := srvID
+
+		// 在内存中剔除发送者自己
+		var finalUIDs []int64
+		for _, uid := range targetUIDs {
+			if uid != gm.FromUserId {
+				finalUIDs = append(finalUIDs, uid)
+			}
+		}
+
+		if len(finalUIDs) == 0 {
+			continue
+		}
+
+		select {
+		case sem <- struct{}{}:
+		case <-gctx.Done():
+			return gctx.Err()
+		}
+
+		g.Go(func() error {
+			// 一次 gRPC 调用，将 payload 连同所有目标 UID 发给单个 Connect 节点
+			if err := c.pushToUser(gctx, serverID, gm.GroupId, finalUIDs, payload); err != nil {
+				log.Printf("batch push to node %s failed: %v", serverID, err)
+			}
+			return nil
+		})
+	}
+	return g.Wait()
+}
+
+type RoomChatHandler struct {
+	Base *ChatConsumer
+}
+
+func NewRoomChatHandler(base *ChatConsumer) *RoomChatHandler {
+	return &RoomChatHandler{Base: base}
+}
+
+func (h *RoomChatHandler) Setup(sarama.ConsumerGroupSession) error {
+	log.Println("[group] Kafka 消费者已准备就绪")
+	return nil
+}
+
+func (h *RoomChatHandler) Cleanup(sarama.ConsumerGroupSession) error {
+	log.Println("[group] Kafka 消费者正在退出清理")
+	return nil
+}
+func (h *RoomChatHandler) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
 	for kMsg := range claim.Messages() {
-		if err := h.Base.handleGroupMessage(kMsg); err != nil {
+		ctx, cancel := context.WithTimeout(session.Context(), 2*time.Second)
+		defer cancel()
+		if err := h.Base.handleRoomMessage(ctx, kMsg); err != nil {
 			log.Printf("[group] 消息处理失败 topic=%s partition=%d offset=%d err=%v",
 				kMsg.Topic, kMsg.Partition, kMsg.Offset, err)
 		}
@@ -142,69 +242,14 @@ func (h *GroupChatHandler) ConsumeClaim(session sarama.ConsumerGroupSession, cla
 	return nil
 }
 
-// ------------- 群聊处理 + 分流 -------------
-func (c *ChatConsumer) handleGroupMessage(kMsg *sarama.ConsumerMessage) error {
+// 房间消息聊天
+func (c *ChatConsumer) handleRoomMessage(ctx context.Context, kMsg *sarama.ConsumerMessage) error {
 	var gm chatpb.GroupMessage
 	if err := proto.Unmarshal(kMsg.Value, &gm); err != nil {
 		return err
 	}
-
-	// 由上游决定路由模式，不在 task 层查 group_members
-	switch gm.GetRoutingMode() {
-	case RoutingModeSmall:
-		// 小群：使用消息里携带的目标用户列表
-		return c.handleSmallGroupMessage(context.Background(), &gm, kMsg.Value)
-	case RoutingModeLarge:
-		// 大群：直接节点广播（不查 Redis 群成员）
-		return c.handleLargeGroupMessage(context.Background(), &gm, kMsg.Value)
-	default:
-		return fmt.Errorf("unknown route_mode: %v", gm.GetRoutingMode())
-	}
+	return c.handleLargeGroupMessage(ctx, &gm, kMsg.Value)
 }
-func (c *ChatConsumer) handleSmallGroupMessage(ctx context.Context, gm *chatpb.GroupMessage, payload []byte) error {
-	// 小群：Redis查群的所有在线成员，再按 user_server:<uid> 精准推送
-	memberIDs, err := c.loadGroupOnlineMemberIDs(ctx, gm.GroupId)
-	if err != nil {
-		return err
-	}
-
-	// memberIDs为空不一定是没有在线用户，也有可能是redis的LRU删除了这个集合，因此：
-	// 调logic grpc找到群的所有用户，在redis里找到所有存活用户写回redis:
-	if len(memberIDs) == 0 {
-		// logic处理
-	}
-
-	g, gctx := errgroup.WithContext(ctx)
-
-	sem := make(chan struct{}, 100)
-
-	for _, uid := range memberIDs {
-		targetUID := uid
-		if targetUID == gm.FromUserId {
-			continue
-		}
-		select {
-		case sem <- struct{}{}:
-		case <-gctx.Done():
-			return gctx.Err()
-		}
-
-		g.Go(func() error {
-			defer func() { <-sem }()
-			serverID, err := c.getUserServerID(gctx, targetUID)
-			if err != nil || serverID == "" {
-				return nil
-			}
-			if err := c.pushToUser(gctx, serverID, targetUID, payload); err != nil {
-				log.Printf("small group push failed group=%d user=%d err=%v", gm.GroupId, targetUID, err)
-			}
-			return nil
-		})
-
-	}
-	return g.Wait()
-}
-
 func (c *ChatConsumer) handleLargeGroupMessage(ctx context.Context, gm *chatpb.GroupMessage, payload []byte) error {
 	// 查询所有connect节点进行广播
 	nodeIDs, err := c.loadGroupNodeIDs(ctx)
@@ -276,6 +321,8 @@ func (c *ChatConsumer) persistMessage(ctx context.Context, chatMsg *chatpb.Messa
 	}
 	return c.DB.WithContext(ctx).Clauses(clause.OnConflict{DoNothing: true}).Create(dbMsg).Error
 }
+
+// 取connect节点grpc client连接并调用connect grpc服务向单个用户推送消息
 func (c *ChatConsumer) pushToUser(ctx context.Context, serverID string, userID int64, payload []byte) error {
 	grpcClient, err := c.ClientPool.GetClient(serverID)
 	if err != nil {
@@ -291,6 +338,9 @@ func (c *ChatConsumer) pushToUser(ctx context.Context, serverID string, userID i
 	return err
 }
 
+// 取connect节点grpc client连接并调用connect grpc服务向多个用户推送消息
+func 
+
 func (c *ChatConsumer) getUserServerID(ctx context.Context, userID int64) (string, error) {
 	key := fmt.Sprintf("%s%d", userServerKeyPrefix, userID)
 	serverID, err := c.RDB.Get(ctx, key).Result()
@@ -301,14 +351,14 @@ func (c *ChatConsumer) getUserServerID(ctx context.Context, userID int64) (strin
 }
 
 // 查找一个群的所有在线用户：一个群的所有成员+用户是否在线进行判断
-func (c *ChatConsumer) loadGroupOnlineMemberIDs(ctx context.Context, groupID int64) ([]int64, error) {
+func (c *ChatConsumer) loadGroupOnlineMemberIDs(ctx context.Context, groupID int64) (map[string][]int64, error) {
 	memberKey := fmt.Sprintf("%s%d", groupMembersKeyPrefix, groupID)
 	rawMembers, err := c.RDB.SMembers(ctx, memberKey).Result()
 	if err != nil {
 		return nil, err
 	}
 	if len(rawMembers) == 0 {
-		return []int64{}, nil
+		return nil, nil
 	}
 
 	userIDs := make([]int64, 0, len(rawMembers))
@@ -324,7 +374,7 @@ func (c *ChatConsumer) loadGroupOnlineMemberIDs(ctx context.Context, groupID int
 	}
 
 	if len(routeKeys) == 0 {
-		return []int64{}, nil
+		return nil, nil
 	}
 
 	// 一次 MGET 批量判断在线态，避免 N 次 GET
@@ -332,26 +382,33 @@ func (c *ChatConsumer) loadGroupOnlineMemberIDs(ctx context.Context, groupID int
 	if err != nil {
 		return nil, err
 	}
-
+	nodeTargetMap := make(map[string][]int64)
 	onlineIDs := make([]int64, 0, len(userIDs))
 	for i, v := range vals {
 		if v == nil {
 			continue // user_server:<uid> 不存在，离线
 		}
+		var serverID string
 		switch sv := v.(type) {
 		case string:
 			if sv == "" {
 				continue
 			}
+			serverID = sv
 		case []byte:
 			if len(sv) == 0 {
 				continue
 			}
+			serverID = string(sv)
+		default:
+			// 未知类型一起跳过
+			continue
 		}
 		onlineIDs = append(onlineIDs, userIDs[i])
+		nodeTargetMap[serverID] = append(nodeTargetMap[serverID], userIDs[i])
 	}
 
-	return onlineIDs, nil
+	return nodeTargetMap, nil
 }
 
 func (c *ChatConsumer) loadGroupNodeIDs(ctx context.Context) ([]string, error) {

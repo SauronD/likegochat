@@ -35,15 +35,21 @@ connec_http_addr = "127.0.0.1:8082"
 [kafka]
 # Kafka 节点地址列表
 kafka_brokers = ["127.0.0.1:9092"]
-# 单人消费组名称
-kafka__single_consumer_group = "singlechat_task_group"
+
 # 单人聊天Topic
-kafka__chat_topic = "chat_messages"
-# 多人消费组名称
-kafka__group_consumer_group = "groupchat_task_group"
-# 多人聊天Topic
-kafka__group_chat_topic = "group_chat_messages"
-# 多人聊天模式阈值
-small_group_max_members = 200
+kafka_chat_topic = "chat_messages"
+# 单人消费组名称
+kafka_singlechat_consumer = "singlechat_task_group"
+
+# 群组聊天Topic
+kafka_group_chat_topic = "group_chat_messages"
+# 群组消费组名称
+kafka_groupchat_consumer = "groupchat_task_group"
+
+# 房间聊天Topic
+kafka_room_chat_topic = "room_chat_messages"
+# 房间消费组名称
+kafka_roomchat_consumer = "roomchat_task_group"
+
 # kafka版本
 kafka_version = "3.8.1"
