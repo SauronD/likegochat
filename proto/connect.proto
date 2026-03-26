@@ -7,6 +7,8 @@ service ConnectService {
     rpc PushMsg(PushMsgRequest) returns (PushMsgReply);
     // 群内广播:向群内所有用户发送消息
     rpc BroadcastRoom(BroadcastRoomRequest) returns (BroadcastRoomReply);
+    // 向一个connect节点上所有用户下发数据
+    rpc PushMsgToUsers(PushAllRequest)returns (PushMsgReply);
 }
 
 message PushMsgRequest {
@@ -14,7 +16,14 @@ message PushMsgRequest {
     // 序列化后的具体聊天内容，connect层不负责数据的反序列化，反序列化放到终端做
     bytes payload    = 2; 
 }
-
+message PushAllRequest {
+   // 消息所属的群组ID
+    int64 group_id = 1;
+    // 序列化消息内容
+    bytes payload = 2; 
+    // 目标用户ID数组
+    repeated int64 user_ids = 3; 
+}
 message PushMsgReply {
     bool success = 1;
 }

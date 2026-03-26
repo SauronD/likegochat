@@ -16,7 +16,7 @@ const (
 	redisSessPrefix string = "sess:"
 	redisUserPrefix string = "user_sess:"
 	// group的所有成员，用于小群聊天的鉴权和小群在线用户的筛选
-	redisGroupUserPrefix string = "group_members"
+	redisGroupUserPrefix string = "group_members:"
 )
 
 type Store struct {

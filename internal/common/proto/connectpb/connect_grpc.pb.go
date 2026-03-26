@@ -19,8 +19,9 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	ConnectService_PushMsg_FullMethodName       = "/connectpb.ConnectService/PushMsg"
-	ConnectService_BroadcastRoom_FullMethodName = "/connectpb.ConnectService/BroadcastRoom"
+	ConnectService_PushMsg_FullMethodName        = "/connectpb.ConnectService/PushMsg"
+	ConnectService_BroadcastRoom_FullMethodName  = "/connectpb.ConnectService/BroadcastRoom"
+	ConnectService_PushMsgToUsers_FullMethodName = "/connectpb.ConnectService/PushMsgToUsers"
 )
 
 // ConnectServiceClient is the client API for ConnectService service.
@@ -31,6 +32,8 @@ type ConnectServiceClient interface {
 	PushMsg(ctx context.Context, in *PushMsgRequest, opts ...grpc.CallOption) (*PushMsgReply, error)
 	// 群内广播:向群内所有用户发送消息
 	BroadcastRoom(ctx context.Context, in *BroadcastRoomRequest, opts ...grpc.CallOption) (*BroadcastRoomReply, error)
+	// 向一个connect节点上所有用户下发数据
+	PushMsgToUsers(ctx context.Context, in *PushAllRequest, opts ...grpc.CallOption) (*PushMsgReply, error)
 }
 
 type connectServiceClient struct {
@@ -61,6 +64,16 @@ func (c *connectServiceClient) BroadcastRoom(ctx context.Context, in *BroadcastR
 	return out, nil
 }
 
+func (c *connectServiceClient) PushMsgToUsers(ctx context.Context, in *PushAllRequest, opts ...grpc.CallOption) (*PushMsgReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(PushMsgReply)
+	err := c.cc.Invoke(ctx, ConnectService_PushMsgToUsers_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ConnectServiceServer is the server API for ConnectService service.
 // All implementations must embed UnimplementedConnectServiceServer
 // for forward compatibility.
@@ -69,6 +82,8 @@ type ConnectServiceServer interface {
 	PushMsg(context.Context, *PushMsgRequest) (*PushMsgReply, error)
 	// 群内广播:向群内所有用户发送消息
 	BroadcastRoom(context.Context, *BroadcastRoomRequest) (*BroadcastRoomReply, error)
+	// 向一个connect节点上所有用户下发数据
+	PushMsgToUsers(context.Context, *PushAllRequest) (*PushMsgReply, error)
 	mustEmbedUnimplementedConnectServiceServer()
 }
 
@@ -84,6 +99,9 @@ func (UnimplementedConnectServiceServer) PushMsg(context.Context, *PushMsgReques
 }
 func (UnimplementedConnectServiceServer) BroadcastRoom(context.Context, *BroadcastRoomRequest) (*BroadcastRoomReply, error) {
 	return nil, status.Error(codes.Unimplemented, "method BroadcastRoom not implemented")
+}
+func (UnimplementedConnectServiceServer) PushMsgToUsers(context.Context, *PushAllRequest) (*PushMsgReply, error) {
+	return nil, status.Error(codes.Unimplemented, "method PushMsgToUsers not implemented")
 }
 func (UnimplementedConnectServiceServer) mustEmbedUnimplementedConnectServiceServer() {}
 func (UnimplementedConnectServiceServer) testEmbeddedByValue()                        {}
@@ -142,6 +160,24 @@ func _ConnectService_BroadcastRoom_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ConnectService_PushMsgToUsers_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PushAllRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ConnectServiceServer).PushMsgToUsers(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ConnectService_PushMsgToUsers_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ConnectServiceServer).PushMsgToUsers(ctx, req.(*PushAllRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ConnectService_ServiceDesc is the grpc.ServiceDesc for ConnectService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -156,6 +192,10 @@ var ConnectService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "BroadcastRoom",
 			Handler:    _ConnectService_BroadcastRoom_Handler,
+		},
+		{
+			MethodName: "PushMsgToUsers",
+			Handler:    _ConnectService_PushMsgToUsers_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

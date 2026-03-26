@@ -26,6 +26,34 @@ func (s *GrpcServer) PushMsg(ctx context.Context, req *connectpb.PushMsgRequest)
 	return &connectpb.PushMsgReply{Success: false}, nil
 }
 
+func (s *GrpcServer) PushMsgToUsers(ctx context.Context, req *connectpb.PushAllRequest) (*connectpb.PushMsgReply, error) {
+	clients := make([]*Client, 0, len(req.UserIds))
+	DefaultManager.Lock.RLock()
+	for i := range req.UserIds {
+		client, exists := DefaultManager.Clients[req.UserIds[i]]
+		if !exists {
+			continue
+		}
+		clients = append(clients, client)
+	}
+	DefaultManager.Lock.RUnlock()
+
+	fail := 0
+	for _, client := range clients {
+		select {
+		case client.Send <- req.Payload:
+		default:
+			// 当前用户的发送缓冲已满，放弃发送
+			fail++
+		}
+	}
+	if fail != 0 {
+		return &connectpb.PushMsgReply{Success: false}, nil
+	}
+	return &connectpb.PushMsgReply{Success: true}, nil
+
+}
+
 // BroadcastRoom 群聊信息，向当前节点的指定group的用户连接发送信息
 func (s *GrpcServer) BroadcastRoom(ctx context.Context, req *connectpb.BroadcastRoomRequest) (*connectpb.BroadcastRoomReply, error) {
 	fanout := DefaultRoomManager.BroadcastRoom(req.GroupId, req.FromUserId, req.Payload)

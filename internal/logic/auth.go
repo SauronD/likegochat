@@ -196,9 +196,9 @@ func (s *Store) ListUserSmallGroups(ctx context.Context, userID int64) ([]UserSm
 
 	err := s.DB.Debug().WithContext(ctx).
 		Table("group_members").
-		Joins("LEFT JOIN groups ON group_members.group_id=groups.id").
-		Select("group_members.group_id,groups.group_name,groups.member_count").
-		Where("group_members.id=? AND groups.group_status=? AND group_members.user_status=?", userID, 0, 0).
+		Joins("LEFT JOIN `groups` ON group_members.group_id=`groups`.id").
+		Select("group_members.group_id,`groups`.group_name,`groups`.member_count").
+		Where("group_members.id=? AND `groups`.group_status=? AND group_members.user_status=?", userID, 0, 0).
 		Order("group_members.joined_at DESC").
 		Scan(&groups).Error
 

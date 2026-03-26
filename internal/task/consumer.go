@@ -24,9 +24,9 @@ const (
 	// 每个用户-连接的connect节点
 	userServerKeyPrefix string = "user_server:"
 	// 所有在线的connect节点
-	connectNodesKeyPrefix string = "connect_nodes"
+	connectNodesKeyPrefix string = "connect_nodes:"
 	// 一个群的所有用户
-	groupMembersKeyPrefix string = "group_members"
+	groupMembersKeyPrefix string = "group_members:"
 
 	// 小群走本地推送：查群的所有存活用户，再查每个用户连接的connect节点进行发送
 	RoutingModeSmall int32 = 1
@@ -172,13 +172,14 @@ func (c *ChatConsumer) handleSmallGroupMessage(ctx context.Context, gm *chatpb.G
 
 	// memberIDs为空不一定是没有在线用户，也有可能是redis的LRU删除了这个集合，因此：
 	// 调logic grpc找到群的所有用户，在redis里找到所有存活用户写回redis:
-	if len(nodeTargetMap) == 0 {
-		// logic处理
+	if nodeTargetMap == nil {
+		// logic处理这种情况：可以查询一次确定是什么情况
+		return errors.New("no such group or no onlie users")
 	}
 
 	g, gctx := errgroup.WithContext(ctx)
-	// 小群的人数上限应该是500
-	sem := make(chan struct{}, 100)
+	// connect节点数有多少？
+	sem := make(chan struct{}, 10)
 
 	for srvID, targetUIDs := range nodeTargetMap {
 		serverID := srvID
@@ -202,8 +203,10 @@ func (c *ChatConsumer) handleSmallGroupMessage(ctx context.Context, gm *chatpb.G
 		}
 
 		g.Go(func() error {
+			defer func() { <-sem }()
+
 			// 一次 gRPC 调用，将 payload 连同所有目标 UID 发给单个 Connect 节点
-			if err := c.pushToUser(gctx, serverID, gm.GroupId, finalUIDs, payload); err != nil {
+			if err := c.pushToConnect(gctx, serverID, gm.GroupId, finalUIDs, payload); err != nil {
 				log.Printf("batch push to node %s failed: %v", serverID, err)
 			}
 			return nil
@@ -339,7 +342,22 @@ func (c *ChatConsumer) pushToUser(ctx context.Context, serverID string, userID i
 }
 
 // 取connect节点grpc client连接并调用connect grpc服务向多个用户推送消息
-func 
+func (c *ChatConsumer) pushToConnect(ctx context.Context, serverID string, groupID int64, toUserIDs []int64, playload []byte) error {
+	grpcClient, err := c.ClientPool.GetClient(serverID)
+	if err != nil {
+		return err
+	}
+
+	rpcCtx, cancel := context.WithTimeout(ctx, 200*time.Millisecond)
+	defer cancel()
+
+	_, err = grpcClient.PushMsgToUsers(rpcCtx, &connectpb.PushAllRequest{
+		GroupId: groupID,
+		UserIds: toUserIDs,
+		Payload: playload,
+	})
+	return err
+}
 
 func (c *ChatConsumer) getUserServerID(ctx context.Context, userID int64) (string, error) {
 	key := fmt.Sprintf("%s%d", userServerKeyPrefix, userID)
@@ -358,7 +376,7 @@ func (c *ChatConsumer) loadGroupOnlineMemberIDs(ctx context.Context, groupID int
 		return nil, err
 	}
 	if len(rawMembers) == 0 {
-		return nil, nil
+		return nil, errors.New("group has no members")
 	}
 
 	userIDs := make([]int64, 0, len(rawMembers))
@@ -374,7 +392,7 @@ func (c *ChatConsumer) loadGroupOnlineMemberIDs(ctx context.Context, groupID int
 	}
 
 	if len(routeKeys) == 0 {
-		return nil, nil
+		return nil, errors.New("group has no online users")
 	}
 
 	// 一次 MGET 批量判断在线态，避免 N 次 GET

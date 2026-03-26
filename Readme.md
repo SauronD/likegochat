@@ -17,3 +17,5 @@
 ws连接到connect节点时，显式传roomID进行连接，在当前connect层bucket内注册
 发送消息：调logic层grpc，推送Kafka，task层处理广播到所有connect节点
 
+消息离线机制：
+每类消息单独一个consumer group来做持久化

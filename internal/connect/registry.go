@@ -12,7 +12,7 @@ const (
 	// 在线用户绑定的connect节点：用于消息推送和用户是否在线
 	UserServerKeyPrefix = "user_server:"
 	// 所有在线connect节点
-	ConnectNodesKeyPrefix = "connect_nodes"
+	ConnectNodesKeyPrefix = "connect_nodes:"
 )
 
 type Registry struct {
