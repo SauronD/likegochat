@@ -26,6 +26,7 @@ type PushMsgRequest struct {
 	ToUserId int64                  `protobuf:"varint,1,opt,name=to_user_id,json=toUserId,proto3" json:"to_user_id,omitempty"`
 	// 序列化后的具体聊天内容，connect层不负责数据的反序列化，反序列化放到终端做
 	Payload       []byte `protobuf:"bytes,2,opt,name=payload,proto3" json:"payload,omitempty"`
+	MsgType       int32  `protobuf:"varint,3,opt,name=msg_type,json=msgType,proto3" json:"msg_type,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -74,6 +75,13 @@ func (x *PushMsgRequest) GetPayload() []byte {
 	return nil
 }
 
+func (x *PushMsgRequest) GetMsgType() int32 {
+	if x != nil {
+		return x.MsgType
+	}
+	return 0
+}
+
 type PushAllRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// 消息所属的群组ID
@@ -82,6 +90,7 @@ type PushAllRequest struct {
 	Payload []byte `protobuf:"bytes,2,opt,name=payload,proto3" json:"payload,omitempty"`
 	// 目标用户ID数组
 	UserIds       []int64 `protobuf:"varint,3,rep,packed,name=user_ids,json=userIds,proto3" json:"user_ids,omitempty"`
+	MsgType       int32   `protobuf:"varint,4,opt,name=msg_type,json=msgType,proto3" json:"msg_type,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -137,6 +146,13 @@ func (x *PushAllRequest) GetUserIds() []int64 {
 	return nil
 }
 
+func (x *PushAllRequest) GetMsgType() int32 {
+	if x != nil {
+		return x.MsgType
+	}
+	return 0
+}
+
 type PushMsgReply struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
@@ -183,9 +199,10 @@ func (x *PushMsgReply) GetSuccess() bool {
 
 type BroadcastRoomRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	GroupId       int64                  `protobuf:"varint,1,opt,name=group_id,json=groupId,proto3" json:"group_id,omitempty"`
+	RoomId        int64                  `protobuf:"varint,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	FromUserId    int64                  `protobuf:"varint,2,opt,name=from_user_id,json=fromUserId,proto3" json:"from_user_id,omitempty"`
 	Payload       []byte                 `protobuf:"bytes,3,opt,name=payload,proto3" json:"payload,omitempty"`
+	MsgType       int32                  `protobuf:"varint,4,opt,name=msg_type,json=msgType,proto3" json:"msg_type,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -220,9 +237,9 @@ func (*BroadcastRoomRequest) Descriptor() ([]byte, []int) {
 	return file_proto_connect_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *BroadcastRoomRequest) GetGroupId() int64 {
+func (x *BroadcastRoomRequest) GetRoomId() int64 {
 	if x != nil {
-		return x.GroupId
+		return x.RoomId
 	}
 	return 0
 }
@@ -239,6 +256,13 @@ func (x *BroadcastRoomRequest) GetPayload() []byte {
 		return x.Payload
 	}
 	return nil
+}
+
+func (x *BroadcastRoomRequest) GetMsgType() int32 {
+	if x != nil {
+		return x.MsgType
+	}
+	return 0
 }
 
 type BroadcastRoomReply struct {
@@ -297,22 +321,25 @@ var File_proto_connect_proto protoreflect.FileDescriptor
 
 const file_proto_connect_proto_rawDesc = "" +
 	"\n" +
-	"\x13proto/connect.proto\x12\tconnectpb\"H\n" +
+	"\x13proto/connect.proto\x12\tconnectpb\"c\n" +
 	"\x0ePushMsgRequest\x12\x1c\n" +
 	"\n" +
 	"to_user_id\x18\x01 \x01(\x03R\btoUserId\x12\x18\n" +
-	"\apayload\x18\x02 \x01(\fR\apayload\"`\n" +
+	"\apayload\x18\x02 \x01(\fR\apayload\x12\x19\n" +
+	"\bmsg_type\x18\x03 \x01(\x05R\amsgType\"{\n" +
 	"\x0ePushAllRequest\x12\x19\n" +
 	"\bgroup_id\x18\x01 \x01(\x03R\agroupId\x12\x18\n" +
 	"\apayload\x18\x02 \x01(\fR\apayload\x12\x19\n" +
-	"\buser_ids\x18\x03 \x03(\x03R\auserIds\"(\n" +
+	"\buser_ids\x18\x03 \x03(\x03R\auserIds\x12\x19\n" +
+	"\bmsg_type\x18\x04 \x01(\x05R\amsgType\"(\n" +
 	"\fPushMsgReply\x12\x18\n" +
-	"\asuccess\x18\x01 \x01(\bR\asuccess\"m\n" +
-	"\x14BroadcastRoomRequest\x12\x19\n" +
-	"\bgroup_id\x18\x01 \x01(\x03R\agroupId\x12 \n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\"\x86\x01\n" +
+	"\x14BroadcastRoomRequest\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\x03R\x06roomId\x12 \n" +
 	"\ffrom_user_id\x18\x02 \x01(\x03R\n" +
 	"fromUserId\x12\x18\n" +
-	"\apayload\x18\x03 \x01(\fR\apayload\"F\n" +
+	"\apayload\x18\x03 \x01(\fR\apayload\x12\x19\n" +
+	"\bmsg_type\x18\x04 \x01(\x05R\amsgType\"F\n" +
 	"\x12BroadcastRoomReply\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x16\n" +
 	"\x06fanout\x18\x02 \x01(\x05R\x06fanout2\xe6\x01\n" +

@@ -481,6 +481,198 @@ func (x *SmallGroupInfo) GetMemberCount() int32 {
 	return 0
 }
 
+type AddGroupRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	GroupId       int64                  `protobuf:"varint,1,opt,name=group_id,json=groupId,proto3" json:"group_id,omitempty"`
+	UserId        int64                  `protobuf:"varint,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AddGroupRequest) Reset() {
+	*x = AddGroupRequest{}
+	mi := &file_proto_auth_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AddGroupRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AddGroupRequest) ProtoMessage() {}
+
+func (x *AddGroupRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_auth_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AddGroupRequest.ProtoReflect.Descriptor instead.
+func (*AddGroupRequest) Descriptor() ([]byte, []int) {
+	return file_proto_auth_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *AddGroupRequest) GetGroupId() int64 {
+	if x != nil {
+		return x.GroupId
+	}
+	return 0
+}
+
+func (x *AddGroupRequest) GetUserId() int64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+type AddGroupReply struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Ok            bool                   `protobuf:"varint,1,opt,name=ok,proto3" json:"ok,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AddGroupReply) Reset() {
+	*x = AddGroupReply{}
+	mi := &file_proto_auth_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AddGroupReply) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AddGroupReply) ProtoMessage() {}
+
+func (x *AddGroupReply) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_auth_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AddGroupReply.ProtoReflect.Descriptor instead.
+func (*AddGroupReply) Descriptor() ([]byte, []int) {
+	return file_proto_auth_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *AddGroupReply) GetOk() bool {
+	if x != nil {
+		return x.Ok
+	}
+	return false
+}
+
+type CreateGroupRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	GroupName     string                 `protobuf:"bytes,2,opt,name=group_name,json=groupName,proto3" json:"group_name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateGroupRequest) Reset() {
+	*x = CreateGroupRequest{}
+	mi := &file_proto_auth_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateGroupRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateGroupRequest) ProtoMessage() {}
+
+func (x *CreateGroupRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_auth_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateGroupRequest.ProtoReflect.Descriptor instead.
+func (*CreateGroupRequest) Descriptor() ([]byte, []int) {
+	return file_proto_auth_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *CreateGroupRequest) GetUserId() int64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *CreateGroupRequest) GetGroupName() string {
+	if x != nil {
+		return x.GroupName
+	}
+	return ""
+}
+
+type CreateGroupReply struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	GroupId       int64                  `protobuf:"varint,1,opt,name=group_id,json=groupId,proto3" json:"group_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateGroupReply) Reset() {
+	*x = CreateGroupReply{}
+	mi := &file_proto_auth_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateGroupReply) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateGroupReply) ProtoMessage() {}
+
+func (x *CreateGroupReply) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_auth_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateGroupReply.ProtoReflect.Descriptor instead.
+func (*CreateGroupReply) Descriptor() ([]byte, []int) {
+	return file_proto_auth_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *CreateGroupReply) GetGroupId() int64 {
+	if x != nil {
+		return x.GroupId
+	}
+	return 0
+}
+
 var File_proto_auth_proto protoreflect.FileDescriptor
 
 const file_proto_auth_proto_rawDesc = "" +
@@ -517,12 +709,25 @@ const file_proto_auth_proto_rawDesc = "" +
 	"\bgroup_id\x18\x01 \x01(\x03R\agroupId\x12\x1d\n" +
 	"\n" +
 	"group_name\x18\x02 \x01(\tR\tgroupName\x12!\n" +
-	"\fmember_count\x18\x03 \x01(\x05R\vmemberCount2\xd8\x01\n" +
+	"\fmember_count\x18\x03 \x01(\x05R\vmemberCount\"E\n" +
+	"\x0fAddGroupRequest\x12\x19\n" +
+	"\bgroup_id\x18\x01 \x01(\x03R\agroupId\x12\x17\n" +
+	"\auser_id\x18\x02 \x01(\x03R\x06userId\"\x1f\n" +
+	"\rAddGroupReply\x12\x0e\n" +
+	"\x02ok\x18\x01 \x01(\bR\x02ok\"L\n" +
+	"\x12CreateGroupRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x1d\n" +
+	"\n" +
+	"group_name\x18\x02 \x01(\tR\tgroupName\"-\n" +
+	"\x10CreateGroupReply\x12\x19\n" +
+	"\bgroup_id\x18\x01 \x01(\x03R\agroupId2\xd1\x02\n" +
 	"\vAuthService\x126\n" +
 	"\bRegister\x12\x15.auth.RegisterRequest\x1a\x13.auth.RegisterReply\x12-\n" +
 	"\x05Login\x12\x12.auth.LoginRequest\x1a\x10.auth.LoginReply\x120\n" +
 	"\x06Verify\x12\x13.auth.VerifyRequest\x1a\x11.auth.VerifyReply\x120\n" +
-	"\x06Logout\x12\x13.auth.LogoutRequest\x1a\x11.auth.LogoutReplyB'Z%./internal/common/proto/authpb;authpbb\x06proto3"
+	"\x06Logout\x12\x13.auth.LogoutRequest\x1a\x11.auth.LogoutReply\x126\n" +
+	"\bAddGroup\x12\x15.auth.AddGroupRequest\x1a\x13.auth.AddGroupReply\x12?\n" +
+	"\vCreateGroup\x12\x18.auth.CreateGroupRequest\x1a\x16.auth.CreateGroupReplyB'Z%./internal/common/proto/authpb;authpbb\x06proto3"
 
 var (
 	file_proto_auth_proto_rawDescOnce sync.Once
@@ -536,33 +741,41 @@ func file_proto_auth_proto_rawDescGZIP() []byte {
 	return file_proto_auth_proto_rawDescData
 }
 
-var file_proto_auth_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
+var file_proto_auth_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_proto_auth_proto_goTypes = []any{
-	(*RegisterRequest)(nil), // 0: auth.RegisterRequest
-	(*RegisterReply)(nil),   // 1: auth.RegisterReply
-	(*LoginRequest)(nil),    // 2: auth.LoginRequest
-	(*LoginReply)(nil),      // 3: auth.LoginReply
-	(*VerifyRequest)(nil),   // 4: auth.VerifyRequest
-	(*VerifyReply)(nil),     // 5: auth.VerifyReply
-	(*LogoutRequest)(nil),   // 6: auth.LogoutRequest
-	(*LogoutReply)(nil),     // 7: auth.LogoutReply
-	(*SmallGroupInfo)(nil),  // 8: auth.SmallGroupInfo
+	(*RegisterRequest)(nil),    // 0: auth.RegisterRequest
+	(*RegisterReply)(nil),      // 1: auth.RegisterReply
+	(*LoginRequest)(nil),       // 2: auth.LoginRequest
+	(*LoginReply)(nil),         // 3: auth.LoginReply
+	(*VerifyRequest)(nil),      // 4: auth.VerifyRequest
+	(*VerifyReply)(nil),        // 5: auth.VerifyReply
+	(*LogoutRequest)(nil),      // 6: auth.LogoutRequest
+	(*LogoutReply)(nil),        // 7: auth.LogoutReply
+	(*SmallGroupInfo)(nil),     // 8: auth.SmallGroupInfo
+	(*AddGroupRequest)(nil),    // 9: auth.AddGroupRequest
+	(*AddGroupReply)(nil),      // 10: auth.AddGroupReply
+	(*CreateGroupRequest)(nil), // 11: auth.CreateGroupRequest
+	(*CreateGroupReply)(nil),   // 12: auth.CreateGroupReply
 }
 var file_proto_auth_proto_depIdxs = []int32{
-	8, // 0: auth.LoginReply.small_groups:type_name -> auth.SmallGroupInfo
-	0, // 1: auth.AuthService.Register:input_type -> auth.RegisterRequest
-	2, // 2: auth.AuthService.Login:input_type -> auth.LoginRequest
-	4, // 3: auth.AuthService.Verify:input_type -> auth.VerifyRequest
-	6, // 4: auth.AuthService.Logout:input_type -> auth.LogoutRequest
-	1, // 5: auth.AuthService.Register:output_type -> auth.RegisterReply
-	3, // 6: auth.AuthService.Login:output_type -> auth.LoginReply
-	5, // 7: auth.AuthService.Verify:output_type -> auth.VerifyReply
-	7, // 8: auth.AuthService.Logout:output_type -> auth.LogoutReply
-	5, // [5:9] is the sub-list for method output_type
-	1, // [1:5] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	8,  // 0: auth.LoginReply.small_groups:type_name -> auth.SmallGroupInfo
+	0,  // 1: auth.AuthService.Register:input_type -> auth.RegisterRequest
+	2,  // 2: auth.AuthService.Login:input_type -> auth.LoginRequest
+	4,  // 3: auth.AuthService.Verify:input_type -> auth.VerifyRequest
+	6,  // 4: auth.AuthService.Logout:input_type -> auth.LogoutRequest
+	9,  // 5: auth.AuthService.AddGroup:input_type -> auth.AddGroupRequest
+	11, // 6: auth.AuthService.CreateGroup:input_type -> auth.CreateGroupRequest
+	1,  // 7: auth.AuthService.Register:output_type -> auth.RegisterReply
+	3,  // 8: auth.AuthService.Login:output_type -> auth.LoginReply
+	5,  // 9: auth.AuthService.Verify:output_type -> auth.VerifyReply
+	7,  // 10: auth.AuthService.Logout:output_type -> auth.LogoutReply
+	10, // 11: auth.AuthService.AddGroup:output_type -> auth.AddGroupReply
+	12, // 12: auth.AuthService.CreateGroup:output_type -> auth.CreateGroupReply
+	7,  // [7:13] is the sub-list for method output_type
+	1,  // [1:7] is the sub-list for method input_type
+	1,  // [1:1] is the sub-list for extension type_name
+	1,  // [1:1] is the sub-list for extension extendee
+	0,  // [0:1] is the sub-list for field type_name
 }
 
 func init() { file_proto_auth_proto_init() }
@@ -576,7 +789,7 @@ func file_proto_auth_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_auth_proto_rawDesc), len(file_proto_auth_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   9,
+			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

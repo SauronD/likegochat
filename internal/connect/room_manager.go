@@ -32,12 +32,12 @@ func NewRoomManager(bucketNum int) *RoomManager {
 	return &RoomManager{buckets: buckets}
 }
 
-func (m *RoomManager) bucketByGroupID(groupID int64) *RoomBucket {
+func (m *RoomManager) bucketByRoomID(roomID int64) *RoomBucket {
 	// 1. 在栈内存上分配 8 字节空间 (零逃逸)
 	var b [8]byte
 
 	// 2. 底层内联转换：将 int64 写入字节数组 (物理效果等同于你之前的 8 行位移)
-	binary.LittleEndian.PutUint64(b[:], uint64(groupID))
+	binary.LittleEndian.PutUint64(b[:], uint64(roomID))
 
 	// 3. 调用 FarmHash 极速算出 32 位散列值
 	hashVal := farm.Hash32(b[:])
@@ -48,12 +48,12 @@ func (m *RoomManager) bucketByGroupID(groupID int64) *RoomBucket {
 	return &m.buckets[idx]
 }
 
-func (m *RoomManager) getOrCreateRoom(groupID int64) *Room {
-	b := m.bucketByGroupID(groupID)
+func (m *RoomManager) getOrCreateRoom(roomID int64) *Room {
+	b := m.bucketByRoomID(roomID)
 
 	// 先读锁查
 	b.mu.RLock()
-	r, ok := b.rooms[groupID]
+	r, ok := b.rooms[roomID]
 	b.mu.RUnlock()
 	if ok {
 		return r
@@ -62,11 +62,11 @@ func (m *RoomManager) getOrCreateRoom(groupID int64) *Room {
 	// 未命中再写锁创建（双检）
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	if r, ok = b.rooms[groupID]; ok {
+	if r, ok = b.rooms[roomID]; ok {
 		return r
 	}
 	r = NewRoom()
-	b.rooms[groupID] = r
+	b.rooms[roomID] = r
 	return r
 }
 
@@ -76,7 +76,7 @@ func (m *RoomManager) JoinRoom(groupID, userID int64, send chan []byte) {
 }
 
 func (m *RoomManager) LeaveRoom(groupID, userID int64) {
-	b := m.bucketByGroupID(groupID)
+	b := m.bucketByRoomID(groupID)
 
 	b.mu.RLock()
 	r, ok := b.rooms[groupID]
@@ -109,11 +109,11 @@ func (m *RoomManager) LeaveRoom(groupID, userID int64) {
 	}
 }
 
-func (m *RoomManager) BroadcastRoom(groupID, fromUserID int64, payload []byte) int {
-	b := m.bucketByGroupID(groupID)
+func (m *RoomManager) BroadcastRoom(roomID, fromUserID int64, payload []byte) int {
+	b := m.bucketByRoomID(roomID)
 
 	b.mu.RLock()
-	r, ok := b.rooms[groupID]
+	r, ok := b.rooms[roomID]
 	b.mu.RUnlock()
 	if !ok {
 		return 0

@@ -56,7 +56,7 @@ func (s *GrpcServer) PushMsgToUsers(ctx context.Context, req *connectpb.PushAllR
 
 // BroadcastRoom 群聊信息，向当前节点的指定group的用户连接发送信息
 func (s *GrpcServer) BroadcastRoom(ctx context.Context, req *connectpb.BroadcastRoomRequest) (*connectpb.BroadcastRoomReply, error) {
-	fanout := DefaultRoomManager.BroadcastRoom(req.GroupId, req.FromUserId, req.Payload)
+	fanout := DefaultRoomManager.BroadcastRoom(req.RoomId, req.FromUserId, req.Payload)
 	return &connectpb.BroadcastRoomReply{
 		Success: true,
 		Fanout:  int32(fanout),

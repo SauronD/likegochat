@@ -8,6 +8,8 @@ import (
 
 	"github.com/IBM/sarama"
 	"google.golang.org/grpc/codes"
+
+	// status用于封装grpc错误
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 
@@ -46,12 +48,13 @@ func (s *ChatServer) SendMessage(ctx context.Context, req *chatpb.SendMessageReq
 	msgID := nextMessageID(now)
 
 	chatMsg := &chatpb.Message{
-		MsgId:      msgID,
-		FromUserId: req.FromUserId,
-		ToUserId:   req.ToUserId,
-		Content:    req.Content,
-		MsgType:    req.MsgType,
-		CreateTime: now,
+		MsgId:       msgID,
+		FromUserId:  req.FromUserId,
+		ToUserId:    req.ToUserId,
+		Content:     req.Content,
+		MsgType:     req.MsgType,
+		CreateTime:  now,
+		ClientMsgId: req.ClietMsgId,
 	}
 
 	// 3. 序列化为 Protobuf 二进制流
@@ -111,12 +114,13 @@ func (s *ChatServer) SendGroupMessage(ctx context.Context, req *chatpb.SendSmall
 	msgID := nextMessageID(now)
 
 	groupMsg := &chatpb.GroupMessage{
-		MsgId:      msgID,
-		FromUserId: req.FromUserId,
-		GroupId:    req.GroupId,
-		Content:    req.Content,
-		MsgType:    req.MsgType,
-		CreateTime: now,
+		MsgId:       msgID,
+		FromUserId:  req.FromUserId,
+		GroupId:     req.GroupId,
+		Content:     req.Content,
+		MsgType:     req.MsgType,
+		CreateTime:  now,
+		ClientMsgId: req.ClientMsgId,
 	}
 
 	payload, err := proto.Marshal(groupMsg)
@@ -127,6 +131,52 @@ func (s *ChatServer) SendGroupMessage(ctx context.Context, req *chatpb.SendSmall
 	kMsg := &sarama.ProducerMessage{
 		Topic: s.GroupChatTopic,
 		Key:   sarama.StringEncoder(strconv.FormatInt(req.GroupId, 10)),
+		Value: sarama.ByteEncoder(payload),
+	}
+	if _, _, err = s.KafkaProducer.SendMessage(kMsg); err != nil {
+		return nil, status.Errorf(codes.Internal, "写入群消息队列失败: %v", err)
+	}
+
+	return &chatpb.SendMessageReply{
+		MsgId:     msgID,
+		Timestamp: now,
+	}, nil
+}
+func (s *ChatServer) SendRoomMessage(ctx context.Context, req *chatpb.SendRoomMessageRequest) (*chatpb.SendMessageReply, error) {
+	if req.RoomId <= 0 {
+		return nil, status.Error(codes.InvalidArgument, "group_id 无效")
+	}
+	if len(req.Content) == 0 {
+		return nil, status.Error(codes.InvalidArgument, "content 不能为空")
+	}
+	if s.RommChatTopic == "" {
+		return nil, status.Error(codes.FailedPrecondition, "group chat topic 未配置")
+	}
+
+	if s.Store == nil {
+		return nil, status.Errorf(codes.Internal, "logic进程存储配置出错")
+	}
+
+	now := time.Now().UnixMilli()
+	msgID := nextMessageID(now)
+
+	roomMsg := &chatpb.RoomMessage{
+		MsgId:      msgID,
+		FromUserId: req.GetFromUserId(),
+		RoomId:     req.GetRoomId(),
+		Content:    req.Content,
+		MsgType:    req.MsgType,
+		CreateTime: now,
+	}
+
+	payload, err := proto.Marshal(roomMsg)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "群消息序列化失败: %v", err)
+	}
+	//写入Kafka消息队列
+	kMsg := &sarama.ProducerMessage{
+		Topic: s.RommChatTopic,
+		Key:   sarama.StringEncoder(strconv.FormatInt(req.RoomId, 10)),
 		Value: sarama.ByteEncoder(payload),
 	}
 	if _, _, err = s.KafkaProducer.SendMessage(kMsg); err != nil {

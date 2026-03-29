@@ -19,3 +19,8 @@ ws连接到connect节点时，显式传roomID进行连接，在当前connect层b
 
 消息离线机制：
 每类消息单独一个consumer group来做持久化
+
+
+
+
+创建Kafka topic:

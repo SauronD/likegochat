@@ -5,10 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"likegochat/internal/common"
+	"log"
 	"strconv"
 	"time"
 
 	"github.com/redis/go-redis/v9"
+	"golang.org/x/sync/singleflight"
 	"gorm.io/gorm"
 )
 
@@ -26,6 +28,7 @@ type Store struct {
 	RDB *redis.Client
 	// session在服务器端存活时间
 	SessionTTL time.Duration
+	sg         singleflight.Group // 物理级并发拦截器
 }
 
 func (s *Store) CreateUser(ctx context.Context, username, passwordHash string) (int64, error) {
@@ -193,6 +196,78 @@ func (s *Store) DeleteSession(ctx context.Context, sessionID string) error {
 // 查询userID是否在groupID群里，注意
 func (s *Store) IsGroupMember(ctx context.Context, groupID, userID int64) (bool, error) {
 	key := fmt.Sprintf("%s%d", redisGroupUserPrefix, groupID)
-	// set不存在的情况需要查一次MySQL加载回来：注意singleflight减少MySQL并发压力
-	return s.RDB.SIsMember(ctx, key, userID).Result()
+
+	// 防线 A：极速内存命中验证
+	isMember, err := s.RDB.SIsMember(ctx, key, userID).Result()
+	if err != nil {
+		return false, err
+	}
+	if isMember {
+		return true, nil // 绝对命中，直接放行
+	}
+
+	// 防线 B：物理歧义消除
+	// 走到这里说明 SIsMember 是 false，必须确认是因为没人，还是因为没缓存
+	exists, err := s.RDB.Exists(ctx, key).Result()
+	if err != nil {
+		return false, err
+	}
+	if exists > 0 {
+		// 缓存键存在（可能是真实成员，或者是 -1 占位符）。
+		// 既然缓存完整且你不在里面，说明你绝对不是群成员，直接物理阻断。
+		return false, nil
+	}
+
+	// 防线 C：触发并发收敛与底层 MySQL 回源
+	flightKey := fmt.Sprintf("fallback_group_member_%d", groupID)
+	v, err, _ := s.sg.Do(flightKey, func() (interface{}, error) {
+		var members []int64
+		// 1. 查 MySQL (绝对真理层提取)
+		dbErr := s.DB.WithContext(ctx).Table("group_members").
+			Select("user_id").
+			Where("group_id = ? AND user_status = 0", groupID).
+			Scan(&members).Error
+		if dbErr != nil {
+			return nil, dbErr
+		}
+
+		// 2. Redis 状态自愈 (复用之前的 Pipeline 原子覆盖与防穿透逻辑)
+		pipe := s.RDB.Pipeline()
+		pipe.Del(ctx, key)
+
+		if len(members) == 0 {
+			// 写入 -1 占位符，防御黑客用假群 ID 狂刷发信接口
+			pipe.SAdd(ctx, key, -1)
+			pipe.Expire(ctx, key, 5*time.Minute)
+		} else {
+			args := make([]interface{}, 0, len(members))
+			for _, id := range members {
+				args = append(args, id)
+			}
+			pipe.SAdd(ctx, key, args...)
+			pipe.Expire(ctx, key, 24*time.Hour)
+		}
+
+		if _, pipeErr := pipe.Exec(ctx); pipeErr != nil {
+			// Redis 写入失败仅打印日志，不阻断本次发信的真实性判断
+			log.Printf("redis cache rebuild failed in IsGroupMember: %v", pipeErr)
+		}
+
+		// 3. 将切片转化为 Map，以便后续 O(1) 极速匹配
+		memberMap := make(map[int64]struct{}, len(members))
+		for _, id := range members {
+			memberMap[id] = struct{}{}
+		}
+		return memberMap, nil
+	})
+
+	if err != nil {
+		return false, err // 数据库宕机，向上层抛出
+	}
+
+	// 内存态类型断言与最终审判
+	memberMap := v.(map[int64]struct{})
+	_, ok := memberMap[userID]
+
+	return ok, nil
 }

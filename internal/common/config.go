@@ -38,14 +38,15 @@ type Config struct {
 	Connect1 ConnectConfig `mapstructure:"connect1"`
 	Connect2 ConnectConfig `mapstructure:"connect2"`
 	Kafka    struct {
-		KafkaBrokers            []string `mapstructure:"kafka_brokers"`
-		SinglechatConsumerGroup string   `mapstructure:"kafka_singlechat_consumer"`
-		GroupchatConsumerGroup  string   `mapstructure:"kafka_groupchat_consumer"`
-		RoomchatConsumerGroup   string   `mapstructure:"kafka_roomchat_consumer"`
-		ChatTopic               string   `mapstructure:"kafka__chat_topic"`
-		GroupChatTopic          string   `mapstructure:"kafka_group_chat_topic"`
-		RoomChatTopic           string   `mapstructure:"kafka_room_chat_topic"`
-		Version                 string   `mapstructure:"kafka_version"`
+		KafkaBrokers             []string `mapstructure:"kafka_brokers"`
+		SinglechatConsumerGroup  string   `mapstructure:"kafka_singlechat_consumer"`
+		GroupchatConsumerGroup   string   `mapstructure:"kafka_groupchat_consumer"`
+		RoomchatConsumerGroup    string   `mapstructure:"kafka_roomchat_consumer"`
+		PersistchatConsumerGroup string   `mapstructure:"kafka_persistchat_consumer"`
+		ChatTopic                string   `mapstructure:"kafka_chat_topic"`
+		GroupChatTopic           string   `mapstructure:"kafka_group_chat_topic"`
+		RoomChatTopic            string   `mapstructure:"kafka_room_chat_topic"`
+		Version                  string   `mapstructure:"kafka_version"`
 	} `mapstructure:"kafka"`
 }
 type ConnectConfig struct {

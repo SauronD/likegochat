@@ -92,7 +92,7 @@ func buildServices(cfg *common.Config, store *logic.Store) error {
 	authService := &logic.AuthServer{
 		Store: store,
 	}
-	// 单人chat服务
+	// chat服务
 	producer, err := logic.InitProducer(cfg.Kafka.KafkaBrokers, cfg.Kafka.Version)
 	if err != nil {
 		common.Logger.Error("init kafka producer failed", zap.Error(err))
@@ -105,6 +105,8 @@ func buildServices(cfg *common.Config, store *logic.Store) error {
 		GroupChatTopic: cfg.Kafka.GroupChatTopic,
 		Store:          store,
 	}
+	// 群组管理服务
+
 	// 监听50001，注册服务，运行gRPC server
 	lis, err := net.Listen("tcp", cfg.Logic.GRPCAddr)
 	if err != nil {
@@ -114,6 +116,7 @@ func buildServices(cfg *common.Config, store *logic.Store) error {
 	gs := grpc.NewServer(grpc.UnaryInterceptor(common.ZapGrpcLogger()))
 	authpb.RegisterAuthServiceServer(gs, authService)
 	chatpb.RegisterChatServiceServer(gs, chatService)
+	chatpb.RegisterGroupServiceServer(gs, authService)
 	log.Println("logic grpc listening on:", cfg.Logic.GRPCAddr)
 	err = gs.Serve(lis)
 	if err != nil {

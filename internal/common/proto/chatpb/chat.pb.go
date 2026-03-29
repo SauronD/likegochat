@@ -27,6 +27,7 @@ type SendMessageRequest struct {
 	ToUserId      int64                  `protobuf:"varint,2,opt,name=to_user_id,json=toUserId,proto3" json:"to_user_id,omitempty"`       // 接收方ID
 	Content       []byte                 `protobuf:"bytes,3,opt,name=content,proto3" json:"content,omitempty"`                            // 消息负载
 	MsgType       int32                  `protobuf:"varint,4,opt,name=msg_type,json=msgType,proto3" json:"msg_type,omitempty"`            // 消息类型（如 1:文本, 2:图片）
+	ClietMsgId    int64                  `protobuf:"varint,5,opt,name=cliet_msg_id,json=clietMsgId,proto3" json:"cliet_msg_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -85,6 +86,13 @@ func (x *SendMessageRequest) GetContent() []byte {
 func (x *SendMessageRequest) GetMsgType() int32 {
 	if x != nil {
 		return x.MsgType
+	}
+	return 0
+}
+
+func (x *SendMessageRequest) GetClietMsgId() int64 {
+	if x != nil {
+		return x.ClietMsgId
 	}
 	return 0
 }
@@ -148,6 +156,7 @@ type SendSmallGroupMessageRequest struct {
 	GroupId       int64                  `protobuf:"varint,2,opt,name=group_id,json=groupId,proto3" json:"group_id,omitempty"`
 	Content       []byte                 `protobuf:"bytes,3,opt,name=content,proto3" json:"content,omitempty"`
 	MsgType       int32                  `protobuf:"varint,4,opt,name=msg_type,json=msgType,proto3" json:"msg_type,omitempty"`
+	ClientMsgId   int64                  `protobuf:"varint,5,opt,name=client_msg_id,json=clientMsgId,proto3" json:"client_msg_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -206,6 +215,13 @@ func (x *SendSmallGroupMessageRequest) GetContent() []byte {
 func (x *SendSmallGroupMessageRequest) GetMsgType() int32 {
 	if x != nil {
 		return x.MsgType
+	}
+	return 0
+}
+
+func (x *SendSmallGroupMessageRequest) GetClientMsgId() int64 {
+	if x != nil {
+		return x.ClientMsgId
 	}
 	return 0
 }
@@ -288,6 +304,7 @@ type Message struct {
 	Content       []byte                 `protobuf:"bytes,4,opt,name=content,proto3" json:"content,omitempty"`
 	MsgType       int32                  `protobuf:"varint,5,opt,name=msg_type,json=msgType,proto3" json:"msg_type,omitempty"`
 	CreateTime    int64                  `protobuf:"varint,6,opt,name=create_time,json=createTime,proto3" json:"create_time,omitempty"`
+	ClientMsgId   int64                  `protobuf:"varint,7,opt,name=client_msg_id,json=clientMsgId,proto3" json:"client_msg_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -364,6 +381,13 @@ func (x *Message) GetCreateTime() int64 {
 	return 0
 }
 
+func (x *Message) GetClientMsgId() int64 {
+	if x != nil {
+		return x.ClientMsgId
+	}
+	return 0
+}
+
 // 群聊物理消息
 type GroupMessage struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -373,7 +397,7 @@ type GroupMessage struct {
 	Content       []byte                 `protobuf:"bytes,4,opt,name=content,proto3" json:"content,omitempty"`
 	MsgType       int32                  `protobuf:"varint,5,opt,name=msg_type,json=msgType,proto3" json:"msg_type,omitempty"`
 	CreateTime    int64                  `protobuf:"varint,6,opt,name=create_time,json=createTime,proto3" json:"create_time,omitempty"`
-	RoutingMode   int32                  `protobuf:"varint,7,opt,name=routing_mode,json=routingMode,proto3" json:"routing_mode,omitempty"`
+	ClientMsgId   int64                  `protobuf:"varint,7,opt,name=client_msg_id,json=clientMsgId,proto3" json:"client_msg_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -450,40 +474,216 @@ func (x *GroupMessage) GetCreateTime() int64 {
 	return 0
 }
 
-func (x *GroupMessage) GetRoutingMode() int32 {
+func (x *GroupMessage) GetClientMsgId() int64 {
 	if x != nil {
-		return x.RoutingMode
+		return x.ClientMsgId
 	}
 	return 0
+}
+
+// 房间物理消息
+type RoomMessage struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	MsgId         int64                  `protobuf:"varint,1,opt,name=msg_id,json=msgId,proto3" json:"msg_id,omitempty"`
+	FromUserId    int64                  `protobuf:"varint,2,opt,name=from_user_id,json=fromUserId,proto3" json:"from_user_id,omitempty"`
+	RoomId        int64                  `protobuf:"varint,3,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	Content       []byte                 `protobuf:"bytes,4,opt,name=content,proto3" json:"content,omitempty"`
+	MsgType       int32                  `protobuf:"varint,5,opt,name=msg_type,json=msgType,proto3" json:"msg_type,omitempty"`
+	CreateTime    int64                  `protobuf:"varint,6,opt,name=create_time,json=createTime,proto3" json:"create_time,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RoomMessage) Reset() {
+	*x = RoomMessage{}
+	mi := &file_proto_chat_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RoomMessage) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RoomMessage) ProtoMessage() {}
+
+func (x *RoomMessage) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_chat_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RoomMessage.ProtoReflect.Descriptor instead.
+func (*RoomMessage) Descriptor() ([]byte, []int) {
+	return file_proto_chat_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *RoomMessage) GetMsgId() int64 {
+	if x != nil {
+		return x.MsgId
+	}
+	return 0
+}
+
+func (x *RoomMessage) GetFromUserId() int64 {
+	if x != nil {
+		return x.FromUserId
+	}
+	return 0
+}
+
+func (x *RoomMessage) GetRoomId() int64 {
+	if x != nil {
+		return x.RoomId
+	}
+	return 0
+}
+
+func (x *RoomMessage) GetContent() []byte {
+	if x != nil {
+		return x.Content
+	}
+	return nil
+}
+
+func (x *RoomMessage) GetMsgType() int32 {
+	if x != nil {
+		return x.MsgType
+	}
+	return 0
+}
+
+func (x *RoomMessage) GetCreateTime() int64 {
+	if x != nil {
+		return x.CreateTime
+	}
+	return 0
+}
+
+type GroupMembersRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	GroupId       int64                  `protobuf:"varint,1,opt,name=group_id,json=groupId,proto3" json:"group_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GroupMembersRequest) Reset() {
+	*x = GroupMembersRequest{}
+	mi := &file_proto_chat_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GroupMembersRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GroupMembersRequest) ProtoMessage() {}
+
+func (x *GroupMembersRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_chat_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GroupMembersRequest.ProtoReflect.Descriptor instead.
+func (*GroupMembersRequest) Descriptor() ([]byte, []int) {
+	return file_proto_chat_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *GroupMembersRequest) GetGroupId() int64 {
+	if x != nil {
+		return x.GroupId
+	}
+	return 0
+}
+
+type GroupMembersReply struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	GroupMembers  []int64                `protobuf:"varint,1,rep,packed,name=group_members,json=groupMembers,proto3" json:"group_members,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GroupMembersReply) Reset() {
+	*x = GroupMembersReply{}
+	mi := &file_proto_chat_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GroupMembersReply) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GroupMembersReply) ProtoMessage() {}
+
+func (x *GroupMembersReply) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_chat_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GroupMembersReply.ProtoReflect.Descriptor instead.
+func (*GroupMembersReply) Descriptor() ([]byte, []int) {
+	return file_proto_chat_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *GroupMembersReply) GetGroupMembers() []int64 {
+	if x != nil {
+		return x.GroupMembers
+	}
+	return nil
 }
 
 var File_proto_chat_proto protoreflect.FileDescriptor
 
 const file_proto_chat_proto_rawDesc = "" +
 	"\n" +
-	"\x10proto/chat.proto\x12\x06chatpb\"\x89\x01\n" +
+	"\x10proto/chat.proto\x12\x06chatpb\"\xab\x01\n" +
 	"\x12SendMessageRequest\x12 \n" +
 	"\ffrom_user_id\x18\x01 \x01(\x03R\n" +
 	"fromUserId\x12\x1c\n" +
 	"\n" +
 	"to_user_id\x18\x02 \x01(\x03R\btoUserId\x12\x18\n" +
 	"\acontent\x18\x03 \x01(\fR\acontent\x12\x19\n" +
-	"\bmsg_type\x18\x04 \x01(\x05R\amsgType\"G\n" +
+	"\bmsg_type\x18\x04 \x01(\x05R\amsgType\x12 \n" +
+	"\fcliet_msg_id\x18\x05 \x01(\x03R\n" +
+	"clietMsgId\"G\n" +
 	"\x10SendMessageReply\x12\x15\n" +
 	"\x06msg_id\x18\x01 \x01(\x03R\x05msgId\x12\x1c\n" +
-	"\ttimestamp\x18\x02 \x01(\x03R\ttimestamp\"\x90\x01\n" +
+	"\ttimestamp\x18\x02 \x01(\x03R\ttimestamp\"\xb4\x01\n" +
 	"\x1cSendSmallGroupMessageRequest\x12 \n" +
 	"\ffrom_user_id\x18\x01 \x01(\x03R\n" +
 	"fromUserId\x12\x19\n" +
 	"\bgroup_id\x18\x02 \x01(\x03R\agroupId\x12\x18\n" +
 	"\acontent\x18\x03 \x01(\fR\acontent\x12\x19\n" +
-	"\bmsg_type\x18\x04 \x01(\x05R\amsgType\"\x88\x01\n" +
+	"\bmsg_type\x18\x04 \x01(\x05R\amsgType\x12\"\n" +
+	"\rclient_msg_id\x18\x05 \x01(\x03R\vclientMsgId\"\x88\x01\n" +
 	"\x16SendRoomMessageRequest\x12 \n" +
 	"\ffrom_user_id\x18\x01 \x01(\x03R\n" +
 	"fromUserId\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\x03R\x06roomId\x12\x18\n" +
 	"\acontent\x18\x03 \x01(\fR\acontent\x12\x19\n" +
-	"\bmsg_type\x18\x04 \x01(\x05R\amsgType\"\xb6\x01\n" +
+	"\bmsg_type\x18\x04 \x01(\x05R\amsgType\"\xda\x01\n" +
 	"\aMessage\x12\x15\n" +
 	"\x06msg_id\x18\x01 \x01(\x03R\x05msgId\x12 \n" +
 	"\ffrom_user_id\x18\x02 \x01(\x03R\n" +
@@ -493,7 +693,8 @@ const file_proto_chat_proto_rawDesc = "" +
 	"\acontent\x18\x04 \x01(\fR\acontent\x12\x19\n" +
 	"\bmsg_type\x18\x05 \x01(\x05R\amsgType\x12\x1f\n" +
 	"\vcreate_time\x18\x06 \x01(\x03R\n" +
-	"createTime\"\xdb\x01\n" +
+	"createTime\x12\"\n" +
+	"\rclient_msg_id\x18\a \x01(\x03R\vclientMsgId\"\xdc\x01\n" +
 	"\fGroupMessage\x12\x15\n" +
 	"\x06msg_id\x18\x01 \x01(\x03R\x05msgId\x12 \n" +
 	"\ffrom_user_id\x18\x02 \x01(\x03R\n" +
@@ -502,12 +703,27 @@ const file_proto_chat_proto_rawDesc = "" +
 	"\acontent\x18\x04 \x01(\fR\acontent\x12\x19\n" +
 	"\bmsg_type\x18\x05 \x01(\x05R\amsgType\x12\x1f\n" +
 	"\vcreate_time\x18\x06 \x01(\x03R\n" +
-	"createTime\x12!\n" +
-	"\frouting_mode\x18\a \x01(\x05R\vroutingMode2\xf3\x01\n" +
+	"createTime\x12\"\n" +
+	"\rclient_msg_id\x18\a \x01(\x03R\vclientMsgId\"\xb5\x01\n" +
+	"\vRoomMessage\x12\x15\n" +
+	"\x06msg_id\x18\x01 \x01(\x03R\x05msgId\x12 \n" +
+	"\ffrom_user_id\x18\x02 \x01(\x03R\n" +
+	"fromUserId\x12\x17\n" +
+	"\aroom_id\x18\x03 \x01(\x03R\x06roomId\x12\x18\n" +
+	"\acontent\x18\x04 \x01(\fR\acontent\x12\x19\n" +
+	"\bmsg_type\x18\x05 \x01(\x05R\amsgType\x12\x1f\n" +
+	"\vcreate_time\x18\x06 \x01(\x03R\n" +
+	"createTime\"0\n" +
+	"\x13GroupMembersRequest\x12\x19\n" +
+	"\bgroup_id\x18\x01 \x01(\x03R\agroupId\"8\n" +
+	"\x11GroupMembersReply\x12#\n" +
+	"\rgroup_members\x18\x01 \x03(\x03R\fgroupMembers2\xf3\x01\n" +
 	"\vChatService\x12C\n" +
 	"\vSendMessage\x12\x1a.chatpb.SendMessageRequest\x1a\x18.chatpb.SendMessageReply\x12R\n" +
 	"\x10SendGroupMessage\x12$.chatpb.SendSmallGroupMessageRequest\x1a\x18.chatpb.SendMessageReply\x12K\n" +
-	"\x0fSendRoomMessage\x12\x1e.chatpb.SendRoomMessageRequest\x1a\x18.chatpb.SendMessageReplyB Z\x1e./internal/common/proto/chatpbb\x06proto3"
+	"\x0fSendRoomMessage\x12\x1e.chatpb.SendRoomMessageRequest\x1a\x18.chatpb.SendMessageReply2b\n" +
+	"\fGroupService\x12R\n" +
+	"\x18RefreshGroupMembersCache\x12\x1b.chatpb.GroupMembersRequest\x1a\x19.chatpb.GroupMembersReplyB Z\x1e./internal/common/proto/chatpbb\x06proto3"
 
 var (
 	file_proto_chat_proto_rawDescOnce sync.Once
@@ -521,7 +737,7 @@ func file_proto_chat_proto_rawDescGZIP() []byte {
 	return file_proto_chat_proto_rawDescData
 }
 
-var file_proto_chat_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_proto_chat_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_proto_chat_proto_goTypes = []any{
 	(*SendMessageRequest)(nil),           // 0: chatpb.SendMessageRequest
 	(*SendMessageReply)(nil),             // 1: chatpb.SendMessageReply
@@ -529,16 +745,21 @@ var file_proto_chat_proto_goTypes = []any{
 	(*SendRoomMessageRequest)(nil),       // 3: chatpb.SendRoomMessageRequest
 	(*Message)(nil),                      // 4: chatpb.Message
 	(*GroupMessage)(nil),                 // 5: chatpb.GroupMessage
+	(*RoomMessage)(nil),                  // 6: chatpb.RoomMessage
+	(*GroupMembersRequest)(nil),          // 7: chatpb.GroupMembersRequest
+	(*GroupMembersReply)(nil),            // 8: chatpb.GroupMembersReply
 }
 var file_proto_chat_proto_depIdxs = []int32{
 	0, // 0: chatpb.ChatService.SendMessage:input_type -> chatpb.SendMessageRequest
 	2, // 1: chatpb.ChatService.SendGroupMessage:input_type -> chatpb.SendSmallGroupMessageRequest
 	3, // 2: chatpb.ChatService.SendRoomMessage:input_type -> chatpb.SendRoomMessageRequest
-	1, // 3: chatpb.ChatService.SendMessage:output_type -> chatpb.SendMessageReply
-	1, // 4: chatpb.ChatService.SendGroupMessage:output_type -> chatpb.SendMessageReply
-	1, // 5: chatpb.ChatService.SendRoomMessage:output_type -> chatpb.SendMessageReply
-	3, // [3:6] is the sub-list for method output_type
-	0, // [0:3] is the sub-list for method input_type
+	7, // 3: chatpb.GroupService.RefreshGroupMembersCache:input_type -> chatpb.GroupMembersRequest
+	1, // 4: chatpb.ChatService.SendMessage:output_type -> chatpb.SendMessageReply
+	1, // 5: chatpb.ChatService.SendGroupMessage:output_type -> chatpb.SendMessageReply
+	1, // 6: chatpb.ChatService.SendRoomMessage:output_type -> chatpb.SendMessageReply
+	8, // 7: chatpb.GroupService.RefreshGroupMembersCache:output_type -> chatpb.GroupMembersReply
+	4, // [4:8] is the sub-list for method output_type
+	0, // [0:4] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name
 	0, // [0:0] is the sub-list for extension extendee
 	0, // [0:0] is the sub-list for field type_name
@@ -555,9 +776,9 @@ func file_proto_chat_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_chat_proto_rawDesc), len(file_proto_chat_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   6,
+			NumMessages:   9,
 			NumExtensions: 0,
-			NumServices:   1,
+			NumServices:   2,
 		},
 		GoTypes:           file_proto_chat_proto_goTypes,
 		DependencyIndexes: file_proto_chat_proto_depIdxs,

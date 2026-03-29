@@ -15,6 +15,7 @@ message PushMsgRequest {
     int64 to_user_id = 1;
     // 序列化后的具体聊天内容，connect层不负责数据的反序列化，反序列化放到终端做
     bytes payload    = 2; 
+    int32 msg_type=3;
 }
 message PushAllRequest {
    // 消息所属的群组ID
@@ -23,15 +24,17 @@ message PushAllRequest {
     bytes payload = 2; 
     // 目标用户ID数组
     repeated int64 user_ids = 3; 
+    int32 msg_type=4;
 }
 message PushMsgReply {
     bool success = 1;
 }
 
 message BroadcastRoomRequest {
-  int64 group_id = 1;
+  int64 room_id = 1;
   int64 from_user_id = 2;
   bytes payload = 3;
+  int32 msg_type=4;
 }
 message BroadcastRoomReply {
   bool success = 1;

@@ -201,3 +201,107 @@ var ChatService_ServiceDesc = grpc.ServiceDesc{
 	Streams:  []grpc.StreamDesc{},
 	Metadata: "proto/chat.proto",
 }
+
+const (
+	GroupService_RefreshGroupMembersCache_FullMethodName = "/chatpb.GroupService/RefreshGroupMembersCache"
+)
+
+// GroupServiceClient is the client API for GroupService service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+type GroupServiceClient interface {
+	// 从MySQL中查询group的所有成员,并写入redis
+	RefreshGroupMembersCache(ctx context.Context, in *GroupMembersRequest, opts ...grpc.CallOption) (*GroupMembersReply, error)
+}
+
+type groupServiceClient struct {
+	cc grpc.ClientConnInterface
+}
+
+func NewGroupServiceClient(cc grpc.ClientConnInterface) GroupServiceClient {
+	return &groupServiceClient{cc}
+}
+
+func (c *groupServiceClient) RefreshGroupMembersCache(ctx context.Context, in *GroupMembersRequest, opts ...grpc.CallOption) (*GroupMembersReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GroupMembersReply)
+	err := c.cc.Invoke(ctx, GroupService_RefreshGroupMembersCache_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// GroupServiceServer is the server API for GroupService service.
+// All implementations must embed UnimplementedGroupServiceServer
+// for forward compatibility.
+type GroupServiceServer interface {
+	// 从MySQL中查询group的所有成员,并写入redis
+	RefreshGroupMembersCache(context.Context, *GroupMembersRequest) (*GroupMembersReply, error)
+	mustEmbedUnimplementedGroupServiceServer()
+}
+
+// UnimplementedGroupServiceServer must be embedded to have
+// forward compatible implementations.
+//
+// NOTE: this should be embedded by value instead of pointer to avoid a nil
+// pointer dereference when methods are called.
+type UnimplementedGroupServiceServer struct{}
+
+func (UnimplementedGroupServiceServer) RefreshGroupMembersCache(context.Context, *GroupMembersRequest) (*GroupMembersReply, error) {
+	return nil, status.Error(codes.Unimplemented, "method RefreshGroupMembersCache not implemented")
+}
+func (UnimplementedGroupServiceServer) mustEmbedUnimplementedGroupServiceServer() {}
+func (UnimplementedGroupServiceServer) testEmbeddedByValue()                      {}
+
+// UnsafeGroupServiceServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to GroupServiceServer will
+// result in compilation errors.
+type UnsafeGroupServiceServer interface {
+	mustEmbedUnimplementedGroupServiceServer()
+}
+
+func RegisterGroupServiceServer(s grpc.ServiceRegistrar, srv GroupServiceServer) {
+	// If the following call panics, it indicates UnimplementedGroupServiceServer was
+	// embedded by pointer and is nil.  This will cause panics if an
+	// unimplemented method is ever invoked, so we test this at initialization
+	// time to prevent it from happening at runtime later due to I/O.
+	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
+		t.testEmbeddedByValue()
+	}
+	s.RegisterService(&GroupService_ServiceDesc, srv)
+}
+
+func _GroupService_RefreshGroupMembersCache_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GroupMembersRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GroupServiceServer).RefreshGroupMembersCache(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: GroupService_RefreshGroupMembersCache_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GroupServiceServer).RefreshGroupMembersCache(ctx, req.(*GroupMembersRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+// GroupService_ServiceDesc is the grpc.ServiceDesc for GroupService service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var GroupService_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "chatpb.GroupService",
+	HandlerType: (*GroupServiceServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "RefreshGroupMembersCache",
+			Handler:    _GroupService_RefreshGroupMembersCache_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "proto/chat.proto",
+}

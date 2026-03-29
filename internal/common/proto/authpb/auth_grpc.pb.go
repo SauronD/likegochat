@@ -19,10 +19,12 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	AuthService_Register_FullMethodName = "/auth.AuthService/Register"
-	AuthService_Login_FullMethodName    = "/auth.AuthService/Login"
-	AuthService_Verify_FullMethodName   = "/auth.AuthService/Verify"
-	AuthService_Logout_FullMethodName   = "/auth.AuthService/Logout"
+	AuthService_Register_FullMethodName    = "/auth.AuthService/Register"
+	AuthService_Login_FullMethodName       = "/auth.AuthService/Login"
+	AuthService_Verify_FullMethodName      = "/auth.AuthService/Verify"
+	AuthService_Logout_FullMethodName      = "/auth.AuthService/Logout"
+	AuthService_AddGroup_FullMethodName    = "/auth.AuthService/AddGroup"
+	AuthService_CreateGroup_FullMethodName = "/auth.AuthService/CreateGroup"
 )
 
 // AuthServiceClient is the client API for AuthService service.
@@ -33,6 +35,8 @@ type AuthServiceClient interface {
 	Login(ctx context.Context, in *LoginRequest, opts ...grpc.CallOption) (*LoginReply, error)
 	Verify(ctx context.Context, in *VerifyRequest, opts ...grpc.CallOption) (*VerifyReply, error)
 	Logout(ctx context.Context, in *LogoutRequest, opts ...grpc.CallOption) (*LogoutReply, error)
+	AddGroup(ctx context.Context, in *AddGroupRequest, opts ...grpc.CallOption) (*AddGroupReply, error)
+	CreateGroup(ctx context.Context, in *CreateGroupRequest, opts ...grpc.CallOption) (*CreateGroupReply, error)
 }
 
 type authServiceClient struct {
@@ -83,6 +87,26 @@ func (c *authServiceClient) Logout(ctx context.Context, in *LogoutRequest, opts 
 	return out, nil
 }
 
+func (c *authServiceClient) AddGroup(ctx context.Context, in *AddGroupRequest, opts ...grpc.CallOption) (*AddGroupReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AddGroupReply)
+	err := c.cc.Invoke(ctx, AuthService_AddGroup_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *authServiceClient) CreateGroup(ctx context.Context, in *CreateGroupRequest, opts ...grpc.CallOption) (*CreateGroupReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CreateGroupReply)
+	err := c.cc.Invoke(ctx, AuthService_CreateGroup_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // AuthServiceServer is the server API for AuthService service.
 // All implementations must embed UnimplementedAuthServiceServer
 // for forward compatibility.
@@ -91,6 +115,8 @@ type AuthServiceServer interface {
 	Login(context.Context, *LoginRequest) (*LoginReply, error)
 	Verify(context.Context, *VerifyRequest) (*VerifyReply, error)
 	Logout(context.Context, *LogoutRequest) (*LogoutReply, error)
+	AddGroup(context.Context, *AddGroupRequest) (*AddGroupReply, error)
+	CreateGroup(context.Context, *CreateGroupRequest) (*CreateGroupReply, error)
 	mustEmbedUnimplementedAuthServiceServer()
 }
 
@@ -112,6 +138,12 @@ func (UnimplementedAuthServiceServer) Verify(context.Context, *VerifyRequest) (*
 }
 func (UnimplementedAuthServiceServer) Logout(context.Context, *LogoutRequest) (*LogoutReply, error) {
 	return nil, status.Error(codes.Unimplemented, "method Logout not implemented")
+}
+func (UnimplementedAuthServiceServer) AddGroup(context.Context, *AddGroupRequest) (*AddGroupReply, error) {
+	return nil, status.Error(codes.Unimplemented, "method AddGroup not implemented")
+}
+func (UnimplementedAuthServiceServer) CreateGroup(context.Context, *CreateGroupRequest) (*CreateGroupReply, error) {
+	return nil, status.Error(codes.Unimplemented, "method CreateGroup not implemented")
 }
 func (UnimplementedAuthServiceServer) mustEmbedUnimplementedAuthServiceServer() {}
 func (UnimplementedAuthServiceServer) testEmbeddedByValue()                     {}
@@ -206,6 +238,42 @@ func _AuthService_Logout_Handler(srv interface{}, ctx context.Context, dec func(
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AuthService_AddGroup_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AddGroupRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuthServiceServer).AddGroup(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AuthService_AddGroup_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuthServiceServer).AddGroup(ctx, req.(*AddGroupRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AuthService_CreateGroup_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateGroupRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuthServiceServer).CreateGroup(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AuthService_CreateGroup_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuthServiceServer).CreateGroup(ctx, req.(*CreateGroupRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // AuthService_ServiceDesc is the grpc.ServiceDesc for AuthService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -228,6 +296,14 @@ var AuthService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Logout",
 			Handler:    _AuthService_Logout_Handler,
+		},
+		{
+			MethodName: "AddGroup",
+			Handler:    _AuthService_AddGroup_Handler,
+		},
+		{
+			MethodName: "CreateGroup",
+			Handler:    _AuthService_CreateGroup_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

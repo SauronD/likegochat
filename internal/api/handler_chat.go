@@ -13,15 +13,26 @@ import (
 
 // SendMessageRequest 前端单人聊天message JSON 结构
 type SendMessageReq struct {
-	ToUserID int64  `json:"to_user_id"`
-	Content  string `json:"content"`
-	MsgType  int32  `json:"msg_type"`
+	ClientMsgID int64  `json:"client_msg_id"`
+	ToUserID    int64  `json:"to_user_id"`
+	Content     string `json:"content"`
+	MsgType     int32  `json:"msg_type"`
 }
 
+// SendMessageRequest 前端群组聊天message JSON 结构
 type SendGroupMessageReq struct {
-	GroupID int64  `json:"group_id"`
-	Content string `json:"content"`
-	MsgType int32  `json:"msg_type"`
+	ClientMsgID int64  `json:"client_msg_id"`
+	GroupID     int64  `json:"group_id"`
+	Content     string `json:"content"`
+	MsgType     int32  `json:"msg_type"`
+}
+
+// SendMessageRequest 前端房间聊天message JSON 结构
+type SendRoomMessageReq struct {
+	ClientMsgID int64  `json:"client_msg_id"`
+	RoomID      int64  `json:"room_id"`
+	Content     string `json:"content"`
+	MsgType     int32  `json:"msg_type"`
 }
 
 func (h *APIHandler) SendMessage(w http.ResponseWriter, r *http.Request) {
@@ -58,6 +69,7 @@ func (h *APIHandler) SendMessage(w http.ResponseWriter, r *http.Request) {
 		ToUserId:   reqBody.ToUserID,
 		Content:    []byte(reqBody.Content), // 转换为底层要求的 bytes
 		MsgType:    reqBody.MsgType,
+		ClietMsgId: reqBody.ClientMsgID,
 	}
 
 	// 4. 调用Logic层gRPC发送服务
@@ -113,10 +125,11 @@ func (h *APIHandler) SendGroupMessage(w http.ResponseWriter, r *http.Request) {
 	chatCtx, chatCancel := context.WithTimeout(r.Context(), 3*time.Second)
 	defer chatCancel()
 	reply, err := h.ChatClient.SendGroupMessage(chatCtx, &chatpb.SendSmallGroupMessageRequest{
-		FromUserId: currentUserID,
-		GroupId:    reqBody.GroupID,
-		Content:    []byte(reqBody.Content),
-		MsgType:    reqBody.MsgType,
+		FromUserId:  currentUserID,
+		GroupId:     reqBody.GroupID,
+		Content:     []byte(reqBody.Content),
+		MsgType:     reqBody.MsgType,
+		ClientMsgId: reqBody.ClientMsgID,
 	})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -132,4 +145,49 @@ func (h *APIHandler) SendGroupMessage(w http.ResponseWriter, r *http.Request) {
 			"timestamp": reply.Timestamp,
 		},
 	})
+}
+func (h *APIHandler) SendRoomMessage(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	sessionID := r.Header.Get("Authorization")
+	if sessionID == "" {
+		http.Error(w, "missing session id", http.StatusUnauthorized)
+		return
+	}
+
+	in := &SendRoomMessageReq{}
+	err := json.NewDecoder(r.Body).Decode(in)
+	if err != nil {
+		http.Error(w, "Bad json", http.StatusBadRequest)
+		return
+	}
+
+	verifyCtx, verifyCancel := context.WithTimeout(r.Context(), 2*time.Second)
+	defer verifyCancel()
+	verifyReply, err := h.AuthClient.Verify(verifyCtx, &authpb.VerifyRequest{SessionId: sessionID})
+	if err != nil {
+		http.Error(w, "invalid session", http.StatusUnauthorized)
+		return
+	}
+	currentUserID := verifyReply.UserId
+	chatCtx, chatCancel := context.WithTimeout(r.Context(), 3*time.Second)
+	defer chatCancel()
+
+	reply, err := h.ChatClient.SendRoomMessage(chatCtx, &chatpb.SendRoomMessageRequest{
+		FromUserId: currentUserID,
+		RoomId:     in.RoomID,
+		Content:    []byte(in.Content),
+		MsgType:    in.MsgType,
+	})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, map[string]any{
+		"msg_id":    reply.MsgId,
+		"timestamp": reply.Timestamp,
+	})
+
 }

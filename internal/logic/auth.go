@@ -11,6 +11,7 @@ import (
 
 	"likegochat/internal/common"
 	authpb "likegochat/internal/common/proto/authpb"
+	"likegochat/internal/common/proto/chatpb"
 )
 
 // AuthServer 是 gRPC 的认证服务实现。
@@ -20,6 +21,7 @@ import (
 // 3. Verify：校验 access token 是否仍然有效
 type AuthServer struct {
 	authpb.UnimplementedAuthServiceServer
+	chatpb.UnimplementedGroupServiceServer
 
 	// Store 负责数据库/Redis访问：
 	// - 查用户
@@ -127,27 +129,7 @@ func (a *AuthServer) Login(ctx context.Context, req *authpb.LoginRequest) (*auth
 	}, nil
 }
 
-// Verify 校验 access token 是否仍然有效。
-//
-// 注意：这里不是“只验 JWT 签名”。
-// 真正的校验流程是两步：
-//
-// 1. 解析 JWT：
-//   - 签名是否正确
-//   - token 是否过期
-//   - claims 是否合法
-//
-// 2. 校验服务端 session：
-//   - sid 对应的 session 是否还存在
-//   - 是否已被撤销（revoked_at）
-//   - 是否已过服务端 session 有效期
-//
-// 为什么必须做第 2 步：
-// 因为 JWT 本身是无状态的，签发后在过期前都可能看起来合法。
-// 如果不查 session 表，就无法实现：
-// - 单端登录踢旧端
-// - 主动登出
-// - 服务端强制失效某次登录
+// Verify 校验sesssion是否仍然有效。
 func (a *AuthServer) Verify(ctx context.Context, req *authpb.VerifyRequest) (*authpb.VerifyReply, error) {
 
 	if req.GetSessionId() == "" {

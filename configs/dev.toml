@@ -51,5 +51,8 @@ kafka_room_chat_topic = "room_chat_messages"
 # 房间消费组名称
 kafka_roomchat_consumer = "roomchat_task_group"
 
+# 持久化消息消费组名称
+kafka_persistchat_consumer = "persistchat_task_group"
+
 # kafka版本
 kafka_version = "3.8.1"

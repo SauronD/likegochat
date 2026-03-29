@@ -11,11 +11,17 @@ service ChatService {
   rpc SendRoomMessage(SendRoomMessageRequest)returns (SendMessageReply);
 }
 
+service GroupService {
+  // 从MySQL中查询group的所有成员,并写入redis
+  rpc RefreshGroupMembersCache(GroupMembersRequest)returns (GroupMembersReply);
+}
+
 message SendMessageRequest {
   int64 from_user_id = 1; // 发送方ID（由API层解析Token后填入）
   int64 to_user_id = 2; // 接收方ID
   bytes content = 3; // 消息负载
   int32 msg_type = 4; // 消息类型（如 1:文本, 2:图片）
+  int64 cliet_msg_id=5;
 }
 
 message SendMessageReply {
@@ -28,6 +34,7 @@ message SendSmallGroupMessageRequest {
   int64 group_id = 2;
   bytes content = 3;
   int32 msg_type = 4;
+  int64 client_msg_id=5;
 }
 // 房间消息发送请求
 message SendRoomMessageRequest {
@@ -45,6 +52,7 @@ message Message {
   bytes content = 4;
   int32 msg_type = 5;
   int64 create_time = 6;
+  int64 client_msg_id=7;
 }
 
 // 群聊物理消息
@@ -55,5 +63,22 @@ message GroupMessage {
   bytes content = 4;
   int32 msg_type = 5;
   int64 create_time = 6;
+  int64 client_msg_id=7;
+}
+// 房间物理消息
+message RoomMessage {
+  int64 msg_id = 1;
+  int64 from_user_id = 2;
+  int64 room_id = 3;
+  bytes content = 4;
+  int32 msg_type = 5;
+  int64 create_time = 6;
+}
+// 
+message GroupMembersRequest {
+  int64 group_id=1;
 }
 
+message GroupMembersReply {
+  repeated int64 group_members=1;
+}

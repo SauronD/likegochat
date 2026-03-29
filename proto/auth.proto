@@ -9,6 +9,8 @@ service AuthService {
   rpc Login(LoginRequest) returns (LoginReply);
   rpc Verify(VerifyRequest) returns (VerifyReply);
   rpc Logout(LogoutRequest) returns (LogoutReply);
+  rpc AddGroup(AddGroupRequest) returns (AddGroupReply);
+  rpc CreateGroup(CreateGroupRequest) returns (CreateGroupReply);
 }
 
 
@@ -51,4 +53,21 @@ message SmallGroupInfo {
   int64 group_id = 1;
   string group_name = 2;
   int32 member_count = 3;
+}
+
+message AddGroupRequest{
+  int64 group_id=1;
+  int64 user_id=2;
+}
+
+message AddGroupReply{
+  bool ok=1;
+}
+
+message CreateGroupRequest{
+  int64 user_id=1;
+  string group_name=2;
+}
+message CreateGroupReply{
+  int64 group_id=1;
 }

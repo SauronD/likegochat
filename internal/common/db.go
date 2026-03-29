@@ -21,24 +21,37 @@ type Message struct {
 	UpdateTime  time.Time `gorm:"column:updated_at;not null;default:CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP;autoUpdateTime"`
 }
 
-type Group struct {
+type GroupMessage struct {
 	ID          int64     `gorm:"column:id;primaryKey;autoIncrement"`
-	Name        string    `gorm:"column:group_name;not null"`
-	Status      int32     `gorm:"column:group_status;not null;default:0"`
-	OwnerUserID int64     `gorm:"column:owner_user_id;not null"`
-	MemberCount int32     `gorm:"column:member_count;not null;default:1"`
-	CreatedAt   time.Time `gorm:"column:created_at;not null;autoCreateTime"`
-	UpdatedAt   time.Time `gorm:"column:updated_at;not null;autoCreateTime"`
+	MsgID       int64     `gorm:"column:msg_id;not null"`
+	ClientMSGID int64     `gorm:"column:client_msg_id;not null"`
+	FromUserID  int64     `gorm:"column:from_user_id;not null"`
+	GroupID     int64     `gorm:"column:group_id;not null"`
+	Content     string    `gorm:"column:content;type:text;not null"`
+	MsgType     int32     `gorm:"column:msg_type;not null;default:1"`
+	Status      int32     `gorm:"column:status;not null;default:0"`
+	CreateTime  time.Time `gorm:"column:created_at;not null;default:CURRENT_TIMESTAMP;autoCreateTime"`
+	UpdateTime  time.Time `gorm:"column:updated_at;not null;default:CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP;autoUpdateTime"`
+}
+
+type Group struct {
+	ID          int64      `gorm:"column:id;primaryKey;autoIncrement"`
+	Name        string     `gorm:"column:group_name;not null"`
+	Status      int32      `gorm:"column:group_status;not null;default:0"`
+	OwnerUserID int64      `gorm:"column:owner_user_id;not null"`
+	MemberCount int32      `gorm:"column:member_count;not null;default:1"`
+	CreatedAt   *time.Time `gorm:"column:created_at;not null;default:CURRENT_TIMESTAMP;autoCreateTime"`
+	UpdatedAt   *time.Time `gorm:"column:updated_at;not null;default:CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP;autoUpdateTime"`
 }
 
 type GroupMember struct {
-	ID         int64     `gorm:"column:id;primaryKey;autoIncrement"`
-	GroupID    int64     `gorm:"column:group_id;not null"`
-	UserID     int64     `gorm:"column:user_id;not null"`
-	UserRole   int32     `gorm:"column:user_role;not null;default:0"`
-	UserStatus int32     `gorm:"column:user_status;not null;default:0"`
-	JoinAt     time.Time `gorm:"column:joined_at;not null"`
-	UpdateAt   time.Time `gorm:"column:updated_at;not null"`
+	ID         int64      `gorm:"column:id;primaryKey;autoIncrement"`
+	GroupID    int64      `gorm:"column:group_id;not null"`
+	UserID     int64      `gorm:"column:user_id;not null"`
+	UserRole   int32      `gorm:"column:user_role;not null;default:0"`
+	UserStatus int32      `gorm:"column:user_status;not null;default:0"`
+	JoinAt     *time.Time `gorm:"column:joined_at;not null;default:CURRENT_TIMESTAMP;autoCreateTime"`
+	UpdateAt   *time.Time `gorm:"column:updated_at;not null;default:CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP;autoUpdateTime"`
 }
 
 func (m Message) TableName() string {
