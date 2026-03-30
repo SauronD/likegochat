@@ -90,7 +90,7 @@ func (c *Client) closeConn() {
 	})
 }
 
-// 非阻塞发送，避免PushMsg的阻塞发送
+// 非阻塞发送，避免推送消息时因为c.Send缓冲区满时一直阻塞在c.Send <- payload
 func (c *Client) trySend(payload []byte) bool {
 	select {
 	case <-c.done:
