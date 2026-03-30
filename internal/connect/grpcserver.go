@@ -13,17 +13,24 @@ type GrpcServer struct {
 
 // PushMsg 将二进制数据透传给对应用户的 WebSocket 发送通道
 func (s *GrpcServer) PushMsg(ctx context.Context, req *connectpb.PushMsgRequest) (*connectpb.PushMsgReply, error) {
+
 	DefaultManager.Lock.RLock()
 	client, exists := DefaultManager.Clients[req.ToUserId]
 	DefaultManager.Lock.RUnlock()
 
-	if exists {
-		// 写入通道，由写协程实际发送
-		client.Send <- req.Payload
-		return &connectpb.PushMsgReply{Success: true}, nil
+	if !exists {
+		return &connectpb.PushMsgReply{Success: false}, nil
 	}
+	if !client.trySend(req.Payload) {
+		return &connectpb.PushMsgReply{Success: false}, nil
+	}
+	// if exists {
+	// 	// 写入通道，由写协程实际发送
+	// 	client.Send <- req.Payload
+	// 	return &connectpb.PushMsgReply{Success: true}, nil
+	// }
 
-	return &connectpb.PushMsgReply{Success: false}, nil
+	return &connectpb.PushMsgReply{Success: true}, nil
 }
 
 func (s *GrpcServer) PushMsgToUsers(ctx context.Context, req *connectpb.PushAllRequest) (*connectpb.PushMsgReply, error) {
@@ -40,17 +47,17 @@ func (s *GrpcServer) PushMsgToUsers(ctx context.Context, req *connectpb.PushAllR
 
 	fail := 0
 	for _, client := range clients {
-		select {
-		case client.Send <- req.Payload:
-		default:
-			// 当前用户的发送缓冲已满，放弃发送
+		// select {
+		// case client.Send <- req.Payload:
+		// default:
+		// 	// 当前用户的发送缓冲已满，放弃发送
+		// 	fail++
+		// }
+		if !client.trySend(req.Payload) {
 			fail++
 		}
 	}
-	if fail != 0 {
-		return &connectpb.PushMsgReply{Success: false}, nil
-	}
-	return &connectpb.PushMsgReply{Success: true}, nil
+	return &connectpb.PushMsgReply{Success: fail == 0}, nil
 
 }
 

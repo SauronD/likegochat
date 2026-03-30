@@ -74,6 +74,7 @@ func (h *APIHandler) Login(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]any{
 		"user_id":      out.UserId,
 		"access_token": out.SessionId,
+		"groups":       out.SmallGroups,
 	})
 }
 

@@ -103,6 +103,7 @@ func buildServices(cfg *common.Config, store *logic.Store) error {
 		KafkaProducer:  producer,
 		ChatTopic:      cfg.Kafka.ChatTopic,
 		GroupChatTopic: cfg.Kafka.GroupChatTopic,
+		RommChatTopic:  cfg.Kafka.RoomChatTopic,
 		Store:          store,
 	}
 	// 群组管理服务

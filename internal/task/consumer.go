@@ -313,9 +313,9 @@ func (c *ChatConsumer) handleRoomMessage(ctx context.Context, kMsg *sarama.Consu
 	if err := proto.Unmarshal(kMsg.Value, &gm); err != nil {
 		return err
 	}
-	return c.handleLargeGroupMessage(ctx, &gm)
+	return c.handleRoomBroadcast(ctx, &gm, kMsg.Value)
 }
-func (c *ChatConsumer) handleLargeGroupMessage(ctx context.Context, gm *chatpb.RoomMessage) error {
+func (c *ChatConsumer) handleRoomBroadcast(ctx context.Context, gm *chatpb.RoomMessage, playload []byte) error {
 	// 查询所有connect节点进行广播
 	nodeIDs, err := c.loadGroupNodeIDs(ctx)
 	if err != nil {
@@ -358,7 +358,7 @@ func (c *ChatConsumer) handleLargeGroupMessage(ctx context.Context, gm *chatpb.R
 			_, err = client.BroadcastRoom(rpcCtx, &connectpb.BroadcastRoomRequest{
 				RoomId:     gm.RoomId,
 				FromUserId: gm.FromUserId,
-				Payload:    gm.Content,
+				Payload:    playload,
 				MsgType:    gm.MsgType,
 			})
 			if err != nil {

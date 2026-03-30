@@ -48,38 +48,26 @@ func (m *RoomManager) bucketByRoomID(roomID int64) *RoomBucket {
 	return &m.buckets[idx]
 }
 
-func (m *RoomManager) getOrCreateRoom(roomID int64) *Room {
+func (m *RoomManager) JoinRoom(roomID, userID int64, send chan []byte) {
 	b := m.bucketByRoomID(roomID)
 
-	// 先读锁查
-	b.mu.RLock()
-	r, ok := b.rooms[roomID]
-	b.mu.RUnlock()
-	if ok {
-		return r
-	}
-
-	// 未命中再写锁创建（双检）
+	// 加入(创建)房间时均锁起来
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	if r, ok = b.rooms[roomID]; ok {
-		return r
+	r, ok := b.rooms[roomID]
+	if !ok {
+		r = NewRoom()
+		b.rooms[roomID] = r
 	}
-	r = NewRoom()
-	b.rooms[roomID] = r
-	return r
-}
 
-func (m *RoomManager) JoinRoom(groupID, userID int64, send chan []byte) {
-	r := m.getOrCreateRoom(groupID)
 	r.Join(userID, send)
 }
 
-func (m *RoomManager) LeaveRoom(groupID, userID int64) {
-	b := m.bucketByRoomID(groupID)
+func (m *RoomManager) LeaveRoom(roomID, userID int64) {
+	b := m.bucketByRoomID(roomID)
 
 	b.mu.RLock()
-	r, ok := b.rooms[groupID]
+	r, ok := b.rooms[roomID]
 	b.mu.RUnlock()
 	if !ok {
 		return
@@ -90,10 +78,11 @@ func (m *RoomManager) LeaveRoom(groupID, userID int64) {
 		return
 	}
 
-	// 房间空了再尝试删除（双检，防止并发 Join）
+	// 房间成员为0时，删除该房间，避免空房间占用内存
+	// 双检，防止删除过程中有用户加入了房间/创建了新房间(从!empty到b.mu.Lock()之间)
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	r2, ok := b.rooms[groupID]
+	r2, ok := b.rooms[roomID]
 	if !ok {
 		return
 	}
@@ -103,10 +92,12 @@ func (m *RoomManager) LeaveRoom(groupID, userID int64) {
 	// 再确认一次是否仍为空
 	r2.mu.RLock()
 	isEmpty := r2.members.Len() == 0
+	// JoinRoom需要竞争b.mu，因此此时不可能有用户能加入房间
 	r2.mu.RUnlock()
 	if isEmpty {
-		delete(b.rooms, groupID)
+		delete(b.rooms, roomID)
 	}
+
 }
 
 func (m *RoomManager) BroadcastRoom(roomID, fromUserID int64, payload []byte) int {

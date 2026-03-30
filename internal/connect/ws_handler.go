@@ -2,6 +2,7 @@ package connect
 
 import (
 	"context"
+	"encoding/json"
 	"log"
 	"net/http"
 	"sync"
@@ -29,6 +30,7 @@ var upgrader = websocket.Upgrader{
 
 // ServerContext 全局依赖注入容器
 type ServerContext struct {
+	// redis客户端
 	Registry *Registry
 	// Logic层的gRPC客户端
 	AuthClient authpb.AuthServiceClient
@@ -40,12 +42,22 @@ type Client struct {
 	Conn   *websocket.Conn
 	Send   chan []byte
 	Ctx    *ServerContext
+	// 用户在线时加入的Room
+	roomsMu sync.Mutex
+	rooms   map[int64]struct{}
+	// 关闭连接信号，避免直接close Send
+	closeOnce sync.Once
+	done      chan struct{}
 }
 
 // ConnectionManager 本机长连接池管理器
 type ConnectionManager struct {
 	Clients map[int64]*Client
 	Lock    sync.RWMutex
+}
+type RoomCmd struct {
+	Op     string `json:"op"`
+	RoomID int64  `json:"room_id"`
 }
 
 var DefaultManager = &ConnectionManager{
@@ -59,12 +71,40 @@ func (m *ConnectionManager) AddClient(userID int64, client *Client) {
 }
 
 func (m *ConnectionManager) RemoveClient(userID int64) {
+	var c *Client
+
 	m.Lock.Lock()
-	defer m.Lock.Unlock()
-	if c, ok := m.Clients[userID]; ok {
-		c.Conn.Close()
-		close(c.Send)
+	if cc, ok := m.Clients[userID]; ok {
+		c = cc
 		delete(m.Clients, userID)
+	}
+	m.Lock.Unlock()
+	if c != nil {
+		c.closeConn()
+	}
+}
+func (c *Client) closeConn() {
+	c.closeOnce.Do(func() {
+		close(c.done)
+		c.Conn.Close()
+	})
+}
+
+// 非阻塞发送，避免PushMsg的阻塞发送
+func (c *Client) trySend(payload []byte) bool {
+	select {
+	case <-c.done:
+		return false
+	default:
+	}
+
+	select {
+	case <-c.done:
+		return false
+	case c.Send <- payload:
+		return true
+	default:
+		return false
 	}
 }
 
@@ -101,6 +141,8 @@ func ServeWS(serverContext *ServerContext, w http.ResponseWriter, r *http.Reques
 		Conn:   conn,
 		Send:   make(chan []byte, 256),
 		Ctx:    serverContext,
+		rooms:  make(map[int64]struct{}),
+		done:   make(chan struct{}),
 	}
 
 	// 4. 加入本机连接池并注册到 Redis
@@ -136,11 +178,31 @@ func (c *Client) readPump() {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				log.Printf("连接异常断开: %v", err)
 			}
+			c.leaveAllRooms()
 			break
 		}
-		// 此处为扩展点：将收到的 message 发往 Kafka，由 Task 层处理。
-		// 例：c.Ctx.KafkaProducer.Send(message)
-		_ = message
+		// 读用户输入
+		in := &RoomCmd{}
+		err = json.Unmarshal(message, &in)
+		if err != nil {
+			// 用户输入反序列化失败
+			log.Println("bad request")
+			continue
+		}
+		switch in.Op {
+		case "joinRoom":
+			if in.RoomID <= 0 {
+				continue
+			}
+			DefaultRoomManager.JoinRoom(in.RoomID, c.UserID, c.Send)
+			c.addRoom(in.RoomID)
+		case "leaveRoom":
+			if in.RoomID <= 0 {
+				continue
+			}
+			DefaultRoomManager.LeaveRoom(in.RoomID, c.UserID)
+			c.removeRoom(in.RoomID)
+		}
 	}
 }
 
@@ -153,7 +215,24 @@ func (c *Client) writePump() {
 
 	for {
 		select {
+		case <-c.done:
+			return
 		case message, ok := <-c.Send: // 收到 gRPC 传来的推送消息
+			// c.Conn.SetWriteDeadline(time.Now().Add(writeWait))
+			// w, err := c.Conn.NextWriter(websocket.BinaryMessage)
+			// if err != nil {
+			// 	return
+			// }
+			// _, _ = w.Write(message)
+
+			// n := len(c.Send)
+			// for i := 0; i < n; i++ {
+			// 	_, _ = w.Write(<-c.Send)
+			// }
+			// if err := w.Close(); err != nil {
+			// 	return
+			// }
+
 			c.Conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if !ok {
 				c.Conn.WriteMessage(websocket.CloseMessage, []byte{})
@@ -182,4 +261,31 @@ func (c *Client) writePump() {
 			}
 		}
 	}
+}
+
+func (c *Client) addRoom(roomID int64) {
+	c.roomsMu.Lock()
+	c.rooms[roomID] = struct{}{}
+	c.roomsMu.Unlock()
+}
+
+func (c *Client) removeRoom(roomID int64) {
+	c.roomsMu.Lock()
+	delete(c.rooms, roomID)
+	c.roomsMu.Unlock()
+}
+
+func (c *Client) leaveAllRooms() {
+
+	c.roomsMu.Lock()
+	roomIDs := make([]int64, 0, len(c.rooms))
+	for key := range c.rooms {
+		roomIDs = append(roomIDs, key)
+	}
+	c.rooms = make(map[int64]struct{})
+	c.roomsMu.Unlock()
+	for _, roomID := range roomIDs {
+		DefaultRoomManager.LeaveRoom(roomID, c.UserID)
+	}
+
 }

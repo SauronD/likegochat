@@ -77,6 +77,7 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
+	defer roomCG.Close()
 	persistCG, err := newConsumerGroup(cfg, cfg.Kafka.PersistchatConsumerGroup)
 	if err != nil {
 		log.Fatalln(err)
@@ -87,7 +88,7 @@ func main() {
 	defer cancel()
 	singlechat := task.NewSingleChatHandler(chatConsumer)
 	groupchat := task.NewGroupChatHandler(chatConsumer)
-	roomchat := task.NewGroupChatHandler(chatConsumer)
+	roomchat := task.NewRoomChatHandler(chatConsumer)
 	persistchat := task.NewPersistGroupHandler(db)
 	// 每个task层进程开启一个协程，作为消费组的一员对相应topic消息进行消费
 	go consumeLoop(ctx, singleCG, []string{cfg.Kafka.ChatTopic}, singlechat)
