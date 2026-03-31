@@ -14,14 +14,16 @@ import (
 )
 
 const (
-	writeWait      = 10 * time.Second
-	pongWait       = 60 * time.Second
-	pingPeriod     = (pongWait * 9) / 10
+	writeWait  = 10 * time.Second
+	pongWait   = 60 * time.Second
+	pingPeriod = (pongWait * 9) / 10
+	// 读入消息最大为4KB
 	maxMessageSize = 4096
 )
 
 var upgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
+	ReadBufferSize: 1024,
+	// WebSocket写缓冲区大小
 	WriteBufferSize: 1024,
 	CheckOrigin: func(r *http.Request) bool {
 		return true // 生产环境需严格校验跨域
@@ -92,11 +94,6 @@ func (c *Client) closeConn() {
 
 // 非阻塞发送，避免推送消息时因为c.Send缓冲区满时一直阻塞在c.Send <- payload
 func (c *Client) trySend(payload []byte) bool {
-	select {
-	case <-c.done:
-		return false
-	default:
-	}
 
 	select {
 	case <-c.done:
@@ -241,17 +238,15 @@ func (c *Client) writePump() {
 
 			w, err := c.Conn.NextWriter(websocket.BinaryMessage)
 			if err != nil {
+				log.Printf("ws socket Write failed:%s", err.Error())
 				return
 			}
+			// 把数据刷到底层net.Conn，缓冲满时会
 			w.Write(message)
-
-			// 批量写入缓冲区优化性能
-			n := len(c.Send)
-			for i := 0; i < n; i++ {
-				w.Write(<-c.Send)
-			}
+			//
 
 			if err := w.Close(); err != nil {
+				log.Printf("ws socket Send failed:%s", err.Error())
 				return
 			}
 		case <-ticker.C: // 发送心跳包
