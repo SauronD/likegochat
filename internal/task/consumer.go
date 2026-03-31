@@ -289,7 +289,7 @@ func (h *RoomChatHandler) ConsumeClaim(session sarama.ConsumerGroupSession, clai
 	for {
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
+			return nil
 		case kMsg, ok := <-claim.Messages():
 			if !ok {
 				return nil

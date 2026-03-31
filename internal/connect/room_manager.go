@@ -63,7 +63,8 @@ func (m *RoomManager) JoinRoom(roomID, userID int64, send chan []byte) {
 	r.Join(userID, send)
 }
 
-func (m *RoomManager) LeaveRoom(roomID, userID int64) {
+// 按userID进行退出，
+func (m *RoomManager) LeaveRoom(roomID, userID int64, send chan []byte) {
 	b := m.bucketByRoomID(roomID)
 
 	b.mu.RLock()
@@ -73,7 +74,7 @@ func (m *RoomManager) LeaveRoom(roomID, userID int64) {
 		return
 	}
 
-	empty := r.Leave(userID)
+	empty := r.Leave(userID, send)
 	if !empty {
 		return
 	}

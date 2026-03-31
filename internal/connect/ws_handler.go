@@ -66,30 +66,58 @@ var DefaultManager = &ConnectionManager{
 	Clients: make(map[int64]*Client),
 }
 
+// 需要处理相同userID创建新连接覆盖旧连接的情况：
+// 不能直接覆盖m.Clients中的原连接，因为旧连接的readPump还在运行，继续占用资源
 func (m *ConnectionManager) AddClient(userID int64, client *Client) {
-	m.Lock.Lock()
-	defer m.Lock.Unlock()
-	m.Clients[userID] = client
-}
-
-func (m *ConnectionManager) RemoveClient(userID int64) {
-	var c *Client
-
+	var old *Client
+	// 查询旧连接是否存在
 	m.Lock.Lock()
 	if cc, ok := m.Clients[userID]; ok {
-		c = cc
-		delete(m.Clients, userID)
+		old = cc
 	}
+	m.Clients[userID] = client
 	m.Lock.Unlock()
-	if c != nil {
-		c.closeConn()
+	// 关闭旧连接：注意重复Add的幂等性
+	if old != nil && old != client {
+		old.closeConn()
 	}
+
 }
+
+// 按照userID直接删除，不考虑误删新连接的问题
+func (m *ConnectionManager) RemoveClient(userID int64) {
+	m.RemoveClientIfMatch(userID, nil)
+}
+
+// 关闭done通道和ws连接
 func (c *Client) closeConn() {
 	c.closeOnce.Do(func() {
 		close(c.done)
 		c.Conn.Close()
 	})
+}
+
+// expect为nil时无条件删除；否则仅在当前映射匹配expect时删除。
+func (m *ConnectionManager) RemoveClientIfMatch(userID int64, expect *Client) bool {
+	var c *Client
+
+	m.Lock.Lock()
+	if cc, ok := m.Clients[userID]; ok {
+		// 如果expect为nil或当前userID对应的连接和expect不同时，不进行删除
+		if expect != nil && cc != expect {
+			m.Lock.Unlock()
+			return false
+		}
+		c = cc
+		delete(m.Clients, userID)
+	}
+	m.Lock.Unlock()
+	// 锁外释放，减少锁竞争
+	if c != nil {
+		c.closeConn()
+		return true
+	}
+	return false
 }
 
 // 非阻塞发送，避免推送消息时因为c.Send缓冲区满时一直阻塞在c.Send <- payload
@@ -142,12 +170,14 @@ func ServeWS(serverContext *ServerContext, w http.ResponseWriter, r *http.Reques
 		done:   make(chan struct{}),
 	}
 
-	// 4. 加入本机连接池并注册到 Redis
+	// 4. 加入connect节点连接池并注册到Redis
+	// 细节是应该在节点连接时先注册本地连接再注册Redis，保证task层推送消息时，ws连接一定存在
 	DefaultManager.AddClient(userID, client)
 	err = serverContext.Registry.RegisterUser(r.Context(), userID)
 	if err != nil {
 		log.Printf("Redis注册connect节点%s失败: %v", serverContext.Registry.ServerID, err)
-		DefaultManager.RemoveClient(userID)
+		// 注意删除旧连接
+		DefaultManager.RemoveClientIfMatch(userID, client)
 		return
 	}
 
@@ -158,8 +188,10 @@ func ServeWS(serverContext *ServerContext, w http.ResponseWriter, r *http.Reques
 
 func (c *Client) readPump() {
 	defer func() {
-		DefaultManager.RemoveClient(c.UserID)
-		c.Ctx.Registry.UnregisterUser(context.Background(), c.UserID)
+		// 仅当前连接仍是userID的有效映射时才做下线清理，避免旧连接误删新连接状态
+		if removed := DefaultManager.RemoveClientIfMatch(c.UserID, c); removed {
+			_ = c.Ctx.Registry.UnregisterUser(context.Background(), c.UserID)
+		}
 	}()
 
 	c.Conn.SetReadLimit(maxMessageSize)
@@ -197,7 +229,7 @@ func (c *Client) readPump() {
 			if in.RoomID <= 0 {
 				continue
 			}
-			DefaultRoomManager.LeaveRoom(in.RoomID, c.UserID)
+			DefaultRoomManager.LeaveRoom(in.RoomID, c.UserID, c.Send)
 			c.removeRoom(in.RoomID)
 		}
 	}
@@ -215,20 +247,6 @@ func (c *Client) writePump() {
 		case <-c.done:
 			return
 		case message, ok := <-c.Send: // 收到 gRPC 传来的推送消息
-			// c.Conn.SetWriteDeadline(time.Now().Add(writeWait))
-			// w, err := c.Conn.NextWriter(websocket.BinaryMessage)
-			// if err != nil {
-			// 	return
-			// }
-			// _, _ = w.Write(message)
-
-			// n := len(c.Send)
-			// for i := 0; i < n; i++ {
-			// 	_, _ = w.Write(<-c.Send)
-			// }
-			// if err := w.Close(); err != nil {
-			// 	return
-			// }
 
 			c.Conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if !ok {
@@ -241,9 +259,9 @@ func (c *Client) writePump() {
 				log.Printf("ws socket Write failed:%s", err.Error())
 				return
 			}
-			// 把数据刷到底层net.Conn，缓冲满时会
+			// 把数据刷到底层net.Conn，写缓冲满时会自动分片
 			w.Write(message)
-			//
+			// 可以继续优化的一个点：这里继续写c.Send的数据，但这样做需要再包装一层协议来处理应用层的“粘包”
 
 			if err := w.Close(); err != nil {
 				log.Printf("ws socket Send failed:%s", err.Error())
@@ -264,6 +282,7 @@ func (c *Client) addRoom(roomID int64) {
 	c.roomsMu.Unlock()
 }
 
+// 维护用户连接的房间roomID
 func (c *Client) removeRoom(roomID int64) {
 	c.roomsMu.Lock()
 	delete(c.rooms, roomID)
@@ -280,7 +299,7 @@ func (c *Client) leaveAllRooms() {
 	c.rooms = make(map[int64]struct{})
 	c.roomsMu.Unlock()
 	for _, roomID := range roomIDs {
-		DefaultRoomManager.LeaveRoom(roomID, c.UserID)
+		DefaultRoomManager.LeaveRoom(roomID, c.UserID, c.Send)
 	}
 
 }

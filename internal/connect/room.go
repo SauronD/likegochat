@@ -27,7 +27,7 @@ func NewRoom() *Room {
 	}
 }
 
-// Join 加入房间；同用户重连时替换 send 通道。
+// Join 加入房间；同用户重连时替换send通道。
 func (r *Room) Join(userID int64, send chan []byte) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -45,8 +45,9 @@ func (r *Room) Join(userID int64, send chan []byte) {
 	r.index[userID] = elem
 }
 
-// Leave 退出房间，返回房间是否为空（便于上层做回收）。
-func (r *Room) Leave(userID int64) bool {
+// Leave退出房间，返回房间是否为空（便于上层做回收）。
+// expectSend非空时，只有当前roomNode的send与expectSend匹配才删除。
+func (r *Room) Leave(userID int64, expectSend chan []byte) bool {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -54,7 +55,11 @@ func (r *Room) Leave(userID int64) bool {
 	if !ok {
 		return r.members.Len() == 0
 	}
-
+	node := elem.Value.(*roomNode)
+	//
+	if expectSend != nil && node.send != expectSend {
+		return r.members.Len() == 0
+	}
 	r.members.Remove(elem)
 	delete(r.index, userID)
 	return r.members.Len() == 0
@@ -81,6 +86,7 @@ func (r *Room) Broadcast(fromUserID int64, payload []byte) int {
 			sent++
 		default:
 			// 慢连接保护：通道满则丢弃当前推送，防止拖垮广播路径
+			// 如果
 		}
 	}
 	return sent
