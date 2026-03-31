@@ -30,9 +30,9 @@ func NewConnectClientPool() *ConnectClientPool {
 	}
 }
 
-// GetClient 根据 redis 中查出的 serverID 获取或新建 gRPC 客户端
+// GetClient 根据redis中查出的serverID获取或新建gRPC客户端
 func (p *ConnectClientPool) GetClient(serverID string) (connectpb.ConnectServiceClient, error) {
-	// 1. 优先读锁获取，提升并发性能
+	// 优先读锁获取，提升并发性能
 	p.lock.RLock()
 	entry, exists := p.clients[serverID]
 	p.lock.RUnlock()
@@ -41,16 +41,16 @@ func (p *ConnectClientPool) GetClient(serverID string) (connectpb.ConnectService
 		return entry.client, nil
 	}
 
-	// 2. 缓存未命中，加写锁创建新连接
+	// 缓存未命中，加写锁创建新连接
 	p.lock.Lock()
 	defer p.lock.Unlock()
 
-	// 3. 双重检查机制 (Double-Check)，防止并发协程重复创建
+	// 双检，防止并发协程重复创建
 	if entry, exists = p.clients[serverID]; exists {
 		return entry.client, nil
 	}
 
-	// 4. 懒惰加载，查到时才真正建立连接
+	// 懒惰加载，查到时才真正建立连接
 	// 建立底层 TCP/HTTP2 连接
 	client, conn, err := common.NewConnectClinet(serverID)
 	if err != nil {

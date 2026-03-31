@@ -70,7 +70,7 @@ func (h *SingleChatHander) Cleanup(sarama.ConsumerGroupSession) error {
 // ConsumeClaim 核心业务处理循环
 func (h *SingleChatHander) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
 	for kMsg := range claim.Messages() {
-		// 1. 反序列化业务数据 (仅为了读取 ToUserId 和持久化)
+		// 反序列化业务数据(仅为了读取ToUserId和持久化)
 		var chatMsg chatpb.Message
 		if err := proto.Unmarshal(kMsg.Value, &chatMsg); err != nil {
 			log.Printf("反序列化 Protobuf 失败: %v", err)
@@ -78,18 +78,18 @@ func (h *SingleChatHander) ConsumeClaim(session sarama.ConsumerGroupSession, cla
 			continue
 		}
 
-		// 2. 查路由：目标用户当前连在哪个 Connect 节点？
-		// 前缀必须与 Connect 层保持严格一致
+		// 查目标用户当前连在哪个Connect节点
 		routingKey := fmt.Sprintf("user_server:%d", chatMsg.ToUserId)
-		serverID, err := h.Base.RDB.Get(context.Background(), routingKey).Result()
-
-		// 3. 执行物理推送
+		ctx, cancel := context.WithTimeout(session.Context(), 100*time.Millisecond)
+		serverID, err := h.Base.RDB.Get(ctx, routingKey).Result()
+		cancel()
+		// 执行物理推送
 		if err == nil && serverID != "" {
-			// 获取对应的 gRPC 客户端
+			// 获取对应的connect节点的gRPC客户端
 			grpcClient, err := h.Base.ClientPool.GetClient(serverID)
 			if err == nil {
-				// 发起跨进程调用。注意：这里直接透传 kMsg.Value 字节流，避免二次序列化
-				rpcCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+				// 发起grpc调用:注意直接传kMsg.Value字节流，避免二次序列化
+				rpcCtx, cancel := context.WithTimeout(session.Context(), 1*time.Second)
 				_, err = grpcClient.PushMsg(rpcCtx, &connectpb.PushMsgRequest{
 					ToUserId: chatMsg.ToUserId,
 					Payload:  kMsg.Value,
@@ -98,10 +98,10 @@ func (h *SingleChatHander) ConsumeClaim(session sarama.ConsumerGroupSession, cla
 				cancel()
 
 				if err != nil {
-					log.Printf("gRPC 推送至节点 %s 失败: %v", serverID, err)
+					log.Printf("gRPC推送至节点%s失败: %v", serverID, err)
 				}
 			} else {
-				log.Printf("获取节点 %s 的 gRPC 客户端失败: %v", serverID, err)
+				log.Printf("获取节点%s的gRPC客户端失败: %v", serverID, err)
 			}
 		}
 
