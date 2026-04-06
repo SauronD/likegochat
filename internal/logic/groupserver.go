@@ -125,7 +125,6 @@ func (a *AuthServer) RefreshGroupMembersCache(ctx context.Context, req *chatpb.G
 	key := fmt.Sprintf("group_members:%d", req.GroupId)
 	pipe := a.Store.RDB.Pipeline()
 	if len(groupMembers) == 0 {
-		// 绝对物理防线：缓存穿透防御
 		// 强行在内存中写入一个 -1 的占位符，阻断后续回源
 		pipe.Del(ctx, key)
 		pipe.SAdd(ctx, key, -1)
