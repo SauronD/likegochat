@@ -44,3 +44,32 @@ v2功能：
 登录验证、SSL、跨越安全问题
 2、更多功能：
 离线消息推送、文件上传/下载、多媒体(语音聊天...)、...
+
+
+
+
+
+<!-- 高并发场景 -->
+1、WebSocket连接
+大量用户同时上线/重连，集中打在ServeWS、连接池 map、Redis在线路由注册上（connect层）。
+
+2、单聊消息洪峰
+大量/api/send同时进入，Logic同步写Kafka，Task再并发路由到各connect节点。
+
+3、群聊fanout
+一条群消息会拆成“按节点批量推送”，群越大、在线人数越多，并发RPC越高。
+
+4、房间广播fanout
+一条room消息会广播到所有connect节点，再在每个节点对本地房间成员广播，放大最明显。
+
+5、热点用户/热点房间
+同一userID或roomID的频繁join/leave/broadcast会集中争用同一把锁(bucket锁)与通道缓冲。
+
+6、缓存 miss/重建风暴
+群成员缓存失效时，多请求同时回源MySQL/Redis；singleflight做抑制。
+
+7、慢连接堆积
+下游客户端写入慢时，Send 缓冲很快打满，进入丢弃分支，触发大量非阻塞失败路径。
+
+8、多topic消费叠加
+task进程同时消费single/group/room/persist，多条管线并行时会叠加CPU、网络、Redis压力。

@@ -37,13 +37,12 @@ type ChatServer struct {
 }
 
 func (s *ChatServer) SendMessage(ctx context.Context, req *chatpb.SendMessageRequest) (*chatpb.SendMessageReply, error) {
-	// 1. 业务前置校验（示例）
+	// 业务前置校验，
 	if req.FromUserId == req.ToUserId {
 		return nil, status.Error(codes.InvalidArgument, "不能给自己发送消息")
 	}
 
-	// 2. 构建底层存储的 Message 模型
-
+	// 封装当前Message，protobuf序列化
 	now := time.Now().UnixMilli()
 	msgID := nextMessageID(now)
 
@@ -57,13 +56,12 @@ func (s *ChatServer) SendMessage(ctx context.Context, req *chatpb.SendMessageReq
 		ClientMsgId: req.ClietMsgId,
 	}
 
-	// 3. 序列化为 Protobuf 二进制流
 	payload, err := proto.Marshal(chatMsg)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "消息序列化失败: %v", err)
 	}
 
-	// 4. 组装 Kafka 消息
+	// 组装Kafka消息
 	kMsg := &sarama.ProducerMessage{
 		Topic: s.ChatTopic,
 		// 使用目标用户的 ID 作为 Key，确保发给同一个用户的消息落入同一个Kafka分区，保证严格的局部有序性
@@ -71,17 +69,17 @@ func (s *ChatServer) SendMessage(ctx context.Context, req *chatpb.SendMessageReq
 		Value: sarama.ByteEncoder(payload),
 	}
 
-	// 5. 同步阻塞发送至 Kafka 磁盘
+	// 同步阻塞发送至Kafka磁盘
 	partition, offset, err := s.KafkaProducer.SendMessage(kMsg)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "写入消息队列失败: %v", err)
 	}
 
-	// 可选：记录日志用于排查
+	// 可记录日志用于排查
 	_ = partition
 	_ = offset
 
-	// 6. 返回成功确认给 API 层
+	// 返回成功确认给API层
 	return &chatpb.SendMessageReply{
 		MsgId:     msgID,
 		Timestamp: now,
