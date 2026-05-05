@@ -14,21 +14,12 @@ import (
 	"likegochat/internal/common/proto/chatpb"
 )
 
-// AuthServer 是 gRPC 的认证服务实现。
-// 它对应 proto 里的 AuthService，负责处理：
-// 1. Register：注册
-// 2. Login：登录
-// 3. Verify：校验 access token 是否仍然有效
+// AuthServer是gRPC的认证服务实现。
 type AuthServer struct {
 	authpb.UnimplementedAuthServiceServer
 	chatpb.UnimplementedGroupServiceServer
 
-	// Store 负责数据库/Redis访问：
-	// - 查用户
-	// - 创建用户
-	// - 撤销旧 session
-	// - 创建新 session
-	// - 校验 session 是否仍有效
+	// Store负责数据库/Redis访问：
 	Store *Store
 }
 
@@ -36,12 +27,8 @@ type AuthServer struct {
 //
 // 整体流程：
 // 1. 校验用户名和密码是否为空
-// 2. 用 bcrypt 生成密码哈希
-// 3. 把用户名和密码哈希写入 users 表
-//
-// 关键原则：
-// - 永远不存明文密码
-// - 数据库里存的是 password_hash
+// 2. 用bcrypt生成密码哈希
+// 3. 把用户名和密码哈希写入users表
 func (a *AuthServer) Register(ctx context.Context, req *authpb.RegisterRequest) (*authpb.RegisterReply, error) {
 	// 用户名和密码不能为空
 	if req.GetUsername() == "" || req.GetPassword() == "" {
@@ -60,26 +47,18 @@ func (a *AuthServer) Register(ctx context.Context, req *authpb.RegisterRequest) 
 		return nil, err
 	}
 
-	// 注册成功后返回 user_id
+	// 注册成功后返回user_id
 	return &authpb.RegisterReply{UserId: id}, nil
 }
 
 // Login 处理登录逻辑。
 //
 // 整体流程：
-// 1. 校验用户名和密码是否为空
-// 2. 根据用户名查用户
-// 3. 用 bcrypt 校验密码是否正确
-// 4. 开启事务
-// 5. 撤销当前用户旧的 active session（单端登录）
-// 6. 创建新的 session
-// 7. 提交事务
-// 8. 生成 JWT access token 并返回
-//
-// 为什么要有事务：
-// 单端登录的关键语义是：
-// “旧 session 失效 + 新 session 生效”必须是一个原子操作。
-// 如果其中一步成功、另一步失败，会导致会话状态不一致。
+// 1、校验用户名和密码是否为空
+// 2、根据用户名查用户
+// 3、用bcrypt校验密码是否正确
+// 4、撤销当前用户旧的active session（单端登录）
+// 5、创建新的session
 func (a *AuthServer) Login(ctx context.Context, req *authpb.LoginRequest) (*authpb.LoginReply, error) {
 
 	if req.GetUsername() == "" || req.GetPassword() == "" {
