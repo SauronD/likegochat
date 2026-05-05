@@ -22,15 +22,16 @@ const (
 )
 
 var upgrader = websocket.Upgrader{
-	ReadBufferSize: 1024,
-	// WebSocket写缓冲区大小
+	// WebSocket读/写缓冲区大小均设置1KB
+	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
 	CheckOrigin: func(r *http.Request) bool {
-		return true // 生产环境需严格校验跨域
+		// 生产环境需要改成白名单校验，这里就不处理了
+		return true
 	},
 }
 
-// ServerContext 全局依赖注入容器
+// ServerContext全局依赖注入容器
 type ServerContext struct {
 	// redis客户端
 	Registry *Registry
@@ -47,7 +48,7 @@ type Client struct {
 	// 用户在线时加入的Room
 	roomsMu sync.Mutex
 	rooms   map[int64]struct{}
-	// 关闭连接信号，避免直接close Send
+	// 关闭连接信号，避免重复close Send
 	closeOnce sync.Once
 	done      chan struct{}
 }
@@ -67,7 +68,7 @@ var DefaultManager = &ConnectionManager{
 }
 
 // 需要处理相同userID创建新连接覆盖旧连接的情况：
-// 不能直接覆盖m.Clients中的原连接，因为旧连接的readPump还在运行，继续占用资源
+// 不能直接覆盖m.Clients中的原连接，因为旧连接的readPump还在运行，继续占用资源，需要关闭旧连接
 func (m *ConnectionManager) AddClient(userID int64, client *Client) {
 	var old *Client
 	// 查询旧连接是否存在
@@ -170,7 +171,7 @@ func ServeWS(serverContext *ServerContext, w http.ResponseWriter, r *http.Reques
 		done:   make(chan struct{}),
 	}
 
-	// 4. 加入connect节点连接池并注册到Redis
+	// 加入connect节点连接池并注册到Redis
 	// 细节是应该在节点连接时先注册本地连接再注册Redis，保证task层推送消息时，ws连接一定存在
 	DefaultManager.AddClient(userID, client)
 	err = serverContext.Registry.RegisterUser(r.Context(), userID)
@@ -181,7 +182,7 @@ func ServeWS(serverContext *ServerContext, w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	// 5. 启动全双工读写协程
+	// 启动全双工读写协程处理消息的接收/发送
 	go client.writePump()
 	go client.readPump()
 }
@@ -246,7 +247,7 @@ func (c *Client) writePump() {
 		select {
 		case <-c.done:
 			return
-		case message, ok := <-c.Send: // 收到 gRPC 传来的推送消息
+		case message, ok := <-c.Send: // 收到需要向客户端推送的消息
 
 			c.Conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if !ok {

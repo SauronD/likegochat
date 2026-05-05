@@ -7,7 +7,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"likegochat/internal/common" // 替换为你的通用包路径
+	"likegochat/internal/common"
 	"likegochat/internal/task"
 
 	"github.com/IBM/sarama"
@@ -15,7 +15,7 @@ import (
 
 func main() {
 
-	// 1. 读取全局配置
+	// 读取全局配置
 	cfg, err := common.LoadConfig("configs/dev.toml")
 	if err != nil {
 		log.Fatalf("加载配置文件失败: %v", err)
@@ -27,19 +27,19 @@ func main() {
 		cfg.Logger.LogFileLevel,
 	)
 
-	// 2. 初始化 Redis
+	// 初始化Redis
 	rdb, err := common.OpenRedis(cfg.Redis.RedisAddr, cfg.Redis.Password, cfg.Redis.DB)
 	if err != nil {
 		log.Fatalf("Redis 连接失败: %v", err)
 	}
 
-	// 3. 初始化 MySQL (假设你的 common 提供了此方法)
+	// 初始化MySQL
 	db, err := common.OpenMySQL(cfg.MySQL.DSN)
 	if err != nil {
 		log.Fatalf("MySQL 连接失败: %v", err)
 	}
 
-	// 4. 初始化 gRPC 客户端池
+	// 初始化gRPC客户端池
 	clientPool := task.NewConnectClientPool()
 	defer func() {
 		if err := clientPool.CloseAll(); err != nil {
@@ -54,14 +54,13 @@ func main() {
 	}
 	defer coon.Close()
 
-	// 5. 组装消费者实例
 	chatConsumer := &task.ChatConsumer{
 		RDB:         rdb,
 		ClientPool:  clientPool,
 		LogicClient: logicClient,
 	}
 
-	// 6. 初始化 Kafka 消费者组客户端
+	// 初始化Kafka消费者组客户端：单聊、群聊、房间聊天、持久化消费组
 	singleCG, err := newConsumerGroup(cfg, cfg.Kafka.SinglechatConsumerGroup)
 	if err != nil {
 		log.Fatalln(err)
@@ -97,13 +96,14 @@ func main() {
 	go consumeLoop(ctx, persistCG, []string{cfg.Kafka.ChatTopic, cfg.Kafka.GroupChatTopic}, persistchat)
 	log.Printf("Task 层服务已启动，正在监听Kafka Topic: %s", cfg.Kafka.ChatTopic)
 
-	// 8. 优雅退出机制
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
 	log.Println("收到退出信号，Task 节点正在关闭...")
 }
+
+// 创建一个消费组的客户端实例
 func newConsumerGroup(cfg *common.Config, groupID string) (sarama.ConsumerGroup, error) {
 	sc := sarama.NewConfig()
 
@@ -122,7 +122,7 @@ func newConsumerGroup(cfg *common.Config, groupID string) (sarama.ConsumerGroup,
 }
 func consumeLoop(ctx context.Context, consumerGroup sarama.ConsumerGroup, topics []string, handler sarama.ConsumerGroupHandler) {
 	for {
-		// Consume 方法会阻塞执行，直到传入的 ctx 被 cancel，或者发生了不可恢复的错误
+		// Consume方法会阻塞执行，直到传入的ctx被cancel，或者发生了不可恢复的错误
 		if err := consumerGroup.Consume(ctx, topics, handler); err != nil {
 			log.Printf("消费组运行异常: %v", err)
 		}

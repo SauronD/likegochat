@@ -28,7 +28,8 @@ type Store struct {
 	RDB *redis.Client
 	// session在服务器端存活时间
 	SessionTTL time.Duration
-	sg         singleflight.Group // 物理级并发拦截器
+	// 收敛并发向MySQL的请求
+	sg singleflight.Group
 }
 
 func (s *Store) CreateUser(ctx context.Context, username, passwordHash string) (int64, error) {
@@ -89,7 +90,7 @@ func (s *Store) RevokeActiveSessionForUser(ctx context.Context, userID int64) er
 
 // 创建一个用户的session
 func (s *Store) CreateSession(ctx context.Context, userID int64, sessionID string) error {
-	pipe := s.RDB.Pipeline()
+	pipe := s.RDB.TxPipeline()
 	pipe.Set(ctx, userSessionKey(userID), sessionID, s.SessionTTL)
 	pipe.Set(ctx, sessionKey(sessionID), strconv.FormatInt(userID, 10), s.SessionTTL)
 	_, err := pipe.Exec(ctx)
@@ -108,16 +109,16 @@ func (s *Store) RefreshSession(ctx context.Context, userID int64, sessionID stri
 	// ARGV[2]: user_id_str
 	// ARGV[3]: ttl_seconds
 	script := `
-        -- 1. 查找并删除旧的session->userid
+        -- 1.查找并删除旧的session->userid
         local oldSid = redis.call("get", KEYS[1])
         if oldSid then
             redis.call("del", KEYS[2] .. oldSid)
         end
         
-        -- 2. 设置新的 user -> sid 映射
+        -- 2.直接覆盖新的user->sid映射
         redis.call("set", KEYS[1], ARGV[1], "EX", ARGV[3])
         
-        -- 3. 设置新的 sid -> userId 映射
+        -- 3.直接覆盖新的sid->user映射
         redis.call("set", KEYS[2] .. ARGV[1], ARGV[2], "EX", ARGV[3])
         
         return 1
@@ -175,11 +176,11 @@ func (s *Store) DeleteSession(ctx context.Context, sessionID string) error {
 	// KEYS[2]: user_sid_key
 	// ARGV[1]: 当前请求删除的 sessionID
 	script := `
-        -- 无论如何，先删掉具体的 session 数据
+        -- 先删掉当前session，表示当前登录状态不存在
         redis.call("del", KEYS[1])
         
-        -- 检查当前 user 指向的 session 是否还是我这个 session
-        -- 如果是，说明没有其他设备抢占，安全删除 user 映射
+        -- 检查当前user指向的session是否还是当前session
+        -- 如果是，说明没有其他设备抢占，安全删除user映射，否则不做处理
         local currentSid = redis.call("get", KEYS[2])
         if currentSid == ARGV[1] then
             redis.call("del", KEYS[2])
@@ -197,32 +198,30 @@ func (s *Store) DeleteSession(ctx context.Context, sessionID string) error {
 func (s *Store) IsGroupMember(ctx context.Context, groupID, userID int64) (bool, error) {
 	key := fmt.Sprintf("%s%d", redisGroupUserPrefix, groupID)
 
-	// 防线 A：极速内存命中验证
+	// 检查redis中数据是否存在
 	isMember, err := s.RDB.SIsMember(ctx, key, userID).Result()
 	if err != nil {
 		return false, err
 	}
 	if isMember {
-		return true, nil // 绝对命中，直接放行
+		return true, nil
 	}
 
-	// 防线 B：物理歧义消除
-	// 走到这里说明 SIsMember 是 false，必须确认是因为没人，还是因为没缓存
+	// 确认是因为不在小群里，还是因为没同步到redis
 	exists, err := s.RDB.Exists(ctx, key).Result()
 	if err != nil {
 		return false, err
 	}
 	if exists > 0 {
-		// 缓存键存在（可能是真实成员，或者是 -1 占位符）。
-		// 既然缓存完整且你不在里面，说明你绝对不是群成员，直接物理阻断。
+		// 缓存键存在（可能是真实成员，或者是-1占位符）说明不在小群里
 		return false, nil
 	}
 
-	// 防线 C：触发并发收敛与底层 MySQL 回源
+	// redis中没有缓存，到MySQL中查询后添加到redis中
 	flightKey := fmt.Sprintf("fallback_group_member_%d", groupID)
+	// 用singleflight收敛并发查询MySQL操作
 	v, err, _ := s.sg.Do(flightKey, func() (interface{}, error) {
 		var members []int64
-		// 1. 查 MySQL (绝对真理层提取)
 		dbErr := s.DB.WithContext(ctx).Table("group_members").
 			Select("user_id").
 			Where("group_id = ? AND user_status = 0", groupID).
@@ -231,12 +230,11 @@ func (s *Store) IsGroupMember(ctx context.Context, groupID, userID int64) (bool,
 			return nil, dbErr
 		}
 
-		// 2. Redis 状态自愈 (复用之前的 Pipeline 原子覆盖与防穿透逻辑)
-		pipe := s.RDB.Pipeline()
+		pipe := s.RDB.TxPipeline()
 		pipe.Del(ctx, key)
 
 		if len(members) == 0 {
-			// 写入 -1 占位符，防御黑客用假群 ID 狂刷发信接口
+			// 写入-1占位符，缓解缓存穿透，注意过期时间应该短一些
 			pipe.SAdd(ctx, key, -1)
 			pipe.Expire(ctx, key, 5*time.Minute)
 		} else {
@@ -249,11 +247,11 @@ func (s *Store) IsGroupMember(ctx context.Context, groupID, userID int64) (bool,
 		}
 
 		if _, pipeErr := pipe.Exec(ctx); pipeErr != nil {
-			// Redis 写入失败仅打印日志，不阻断本次发信的真实性判断
+			// Redis写入失败仅打印日志，不阻断本次发信的真实性判断
 			log.Printf("redis cache rebuild failed in IsGroupMember: %v", pipeErr)
 		}
 
-		// 3. 将切片转化为 Map，以便后续 O(1) 极速匹配
+		// 将切片转化为map用于判断userID是否在群组中
 		memberMap := make(map[int64]struct{}, len(members))
 		for _, id := range members {
 			memberMap[id] = struct{}{}
@@ -262,10 +260,9 @@ func (s *Store) IsGroupMember(ctx context.Context, groupID, userID int64) (bool,
 	})
 
 	if err != nil {
-		return false, err // 数据库宕机，向上层抛出
+		return false, err
 	}
-
-	// 内存态类型断言与最终审判
+	// 对每个并发协程判断其userID是否存在于小群中
 	memberMap := v.(map[int64]struct{})
 	_, ok := memberMap[userID]
 

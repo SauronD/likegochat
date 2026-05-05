@@ -11,7 +11,7 @@ import (
 	"likegochat/internal/common/proto/chatpb"
 )
 
-// SendMessageRequest 前端单人聊天message JSON 结构
+// SendMessageRequest 前端单人聊天message JSON结构
 type SendMessageReq struct {
 	ClientMsgID int64  `json:"client_msg_id"`
 	ToUserID    int64  `json:"to_user_id"`
@@ -19,7 +19,7 @@ type SendMessageReq struct {
 	MsgType     int32  `json:"msg_type"`
 }
 
-// SendMessageRequest 前端群组聊天message JSON 结构
+// SendMessageRequest 前端群组聊天message JSON结构
 type SendGroupMessageReq struct {
 	ClientMsgID int64  `json:"client_msg_id"`
 	GroupID     int64  `json:"group_id"`
@@ -27,7 +27,7 @@ type SendGroupMessageReq struct {
 	MsgType     int32  `json:"msg_type"`
 }
 
-// SendMessageRequest 前端房间聊天message JSON 结构
+// SendMessageRequest 前端房间聊天message JSON结构
 type SendRoomMessageReq struct {
 	ClientMsgID int64  `json:"client_msg_id"`
 	RoomID      int64  `json:"room_id"`
@@ -56,14 +56,14 @@ func (h *APIHandler) SendMessage(w http.ResponseWriter, r *http.Request) {
 	}
 	currentUserID := verifyReply.UserId
 
-	// 2. 解析前端传来的 JSON 请求体
+	// 解析前端的JSON请求体
 	var reqBody SendMessageReq
 	if err := json.NewDecoder(r.Body).Decode(&reqBody); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
-	// 3. 构造 gRPC 请求对象
+	// 构造gRPC请求对象
 	rpcReq := &chatpb.SendMessageRequest{
 		FromUserId: currentUserID,
 		ToUserId:   reqBody.ToUserID,
@@ -72,17 +72,15 @@ func (h *APIHandler) SendMessage(w http.ResponseWriter, r *http.Request) {
 		ClietMsgId: reqBody.ClientMsgID,
 	}
 
-	// 4. 调用Logic层gRPC发送服务
+	// 调用Logic层gRPC发送服务
 	chatCtx, chatCancel := context.WithTimeout(r.Context(), 3*time.Second)
 	defer chatCancel()
 	reply, err := h.ChatClient.SendMessage(chatCtx, rpcReq)
 	if err != nil {
-		// 返回底层的具体错误描述给前端
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	// 5. 将处理结果返回给前端 (HTTP 200 OK)
 	w.Header().Set("Content-Type", "application/json")
 	err = json.NewEncoder(w).Encode(map[string]interface{}{
 		"code":    0,

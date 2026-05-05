@@ -70,7 +70,7 @@ func (h *SingleChatHander) Cleanup(sarama.ConsumerGroupSession) error {
 // ConsumeClaim 核心业务处理循环
 func (h *SingleChatHander) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
 	for kMsg := range claim.Messages() {
-		// 反序列化业务数据(仅为了读取ToUserId和持久化)
+		// 反序列化业务数据(为了读取ToUserId和持久化)
 		var chatMsg chatpb.Message
 		if err := proto.Unmarshal(kMsg.Value, &chatMsg); err != nil {
 			log.Printf("反序列化 Protobuf 失败: %v", err)
@@ -229,7 +229,7 @@ func (c *ChatConsumer) handleSmallGroupMessage(ctx context.Context, gm *chatpb.G
 	}
 
 	g, gctx := errgroup.WithContext(ctx)
-	// connect节点数有多少？
+	// 并发处理的connect节点个数最多为10个
 	sem := make(chan struct{}, 10)
 
 	for srvID, targetUIDs := range nodeTargetMap {
@@ -256,10 +256,12 @@ func (c *ChatConsumer) handleSmallGroupMessage(ctx context.Context, gm *chatpb.G
 		g.Go(func() error {
 			defer func() { <-sem }()
 
-			// 一次 gRPC 调用，将payload连同所有目标UID发给单个Connect节点
+			// 一次gRPC调用，将payload连同所有目标UID发给单个Connect节点
 			if err := c.pushToConnect(gctx, serverID, gm.GroupId, finalUIDs, payload, gm.MsgType); err != nil {
 				log.Printf("batch push to node %s failed: %v", serverID, err)
+				// 这里可以改成返回当前错误，来取消errgroup中剩余任务，但为了尽力推送还是只记录错误
 			}
+
 			return nil
 		})
 	}
@@ -516,9 +518,9 @@ func (c *PersistConsumer) ConsumeClaim(session sarama.ConsumerGroupSession, clai
 			if !ok {
 				return nil
 			}
-			// 针对单条消息开启物理重试死循环
+			// 针对单条消息开启物理重试循环
 			for {
-				// 必须在重试循环内部重新申请堆内存，重置2秒生命周期
+				// 重置2秒生命周期
 				cctx, cancel := context.WithTimeout(ctx, 2*time.Second)
 
 				var processErr error
@@ -528,18 +530,18 @@ func (c *PersistConsumer) ConsumeClaim(session sarama.ConsumerGroupSession, clai
 				case "chat_messages":
 					var chatMsg chatpb.Message
 					if err := proto.Unmarshal(msg.Value, &chatMsg); err != nil {
-						log.Printf("单聊消息反序列化失败，直接物理抹除 (Offset: %d): %v", msg.Offset, err)
+						log.Printf("单聊消息反序列化失败，直接物理抹除(Offset: %d): %v", msg.Offset, err)
 						badMessage = true
-						break // 跳出 switch
+						break
 					}
 					processErr = c.persistMessage(cctx, &chatMsg)
 
 				case "group_chat_messages":
 					var chatMsg chatpb.GroupMessage
 					if err := proto.Unmarshal(msg.Value, &chatMsg); err != nil {
-						log.Printf("[致命异常] 群聊消息反序列化失败，直接物理抹除 (Offset: %d): %v", msg.Offset, err)
+						log.Printf("[fatal error] 群聊消息反序列化失败，直接物理抹除(Offset: %d): %v", msg.Offset, err)
 						badMessage = true
-						break // 跳出 switch
+						break
 					}
 					processErr = c.persistGroupMessage(cctx, &chatMsg)
 				}
@@ -557,14 +559,13 @@ func (c *PersistConsumer) ConsumeClaim(session sarama.ConsumerGroupSession, clai
 				}
 
 				// 持久化消息失败，
-				log.Printf("[重试触发] 消息持久化失败，当前协程进入物理休眠等待重试 (Topic: %s, Offset: %d): %v", msg.Topic, msg.Offset, processErr)
+				log.Printf("[重试触发] 消息持久化失败，当前协程等待重试(Topic: %s, Offset: %d): %v", msg.Topic, msg.Offset, processErr)
 
 				// 等待，防止短时间内高频发包打爆宕机中的 MySQL
 				timer := time.NewTimer(1 * time.Second)
 				select {
 				case <-ctx.Done():
-					// 在休眠期间，如果收到了操作系统的 SIGTERM 终止进程信号，
-					// 必须立刻回收定时器内存并退出，绝对不允许强制提交游标
+					// 在休眠期间，如果收到了终止进程信号则不提交游标
 					timer.Stop()
 					return nil
 				case <-timer.C:

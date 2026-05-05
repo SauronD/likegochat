@@ -69,6 +69,7 @@ func (r *Room) Leave(userID int64, expectSend chan []byte) bool {
 // 非阻塞发送，通道满时跳过该连接，避免阻塞整个房间。
 func (r *Room) Broadcast(fromUserID int64, payload []byte) int {
 	r.mu.RLock()
+	// 先获取所有成员的send通道再发送，降低锁竞争
 	targets := make([]chan []byte, 0, r.members.Len())
 	for e := r.members.Front(); e != nil; e = e.Next() {
 		node := e.Value.(*roomNode)
@@ -86,7 +87,6 @@ func (r *Room) Broadcast(fromUserID int64, payload []byte) int {
 			sent++
 		default:
 			// 慢连接保护：通道满则丢弃当前推送，防止拖垮广播路径
-			// 如果
 		}
 	}
 	return sent

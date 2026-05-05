@@ -79,7 +79,7 @@ func (a *AuthServer) Register(ctx context.Context, req *authpb.RegisterRequest) 
 // 为什么要有事务：
 // 单端登录的关键语义是：
 // “旧 session 失效 + 新 session 生效”必须是一个原子操作。
-// 如果其中一步成功、另一部失败，会导致会话状态不一致。
+// 如果其中一步成功、另一步失败，会导致会话状态不一致。
 func (a *AuthServer) Login(ctx context.Context, req *authpb.LoginRequest) (*authpb.LoginReply, error) {
 
 	if req.GetUsername() == "" || req.GetPassword() == "" {

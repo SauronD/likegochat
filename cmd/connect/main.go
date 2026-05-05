@@ -33,7 +33,7 @@ func main() {
 		cfg.Logger.LogFileAge,
 		cfg.Logger.LogFileLevel,
 	)
-	// 1. 初始化 Redis 客户端
+	// 初始化Redis客户端
 	rdb, err := common.OpenRedis(cfg.Redis.RedisAddr, cfg.Redis.Password, cfg.Redis.DB)
 	if err != nil {
 		log.Fatalf("Redis 连接失败: %v", err)
@@ -48,13 +48,13 @@ func main() {
 		connectConfig = cfg.Connect2
 	}
 
-	// 2. 初始化路由注册器
+	// 初始化路由注册器
 	registry := &connect.Registry{
 		RDB:      rdb,
 		ServerID: connectConfig.ConnectServerAddr,
 	}
 
-	// 注册当前 connect 节点，供 Task 层大群广播时查询
+	// 注册当前connect节点，供Task层房间广播时查询
 	if err := registry.RegisterConnectNode(context.Background()); err != nil {
 		log.Fatalf("redis注册connect节点失败: %v", err)
 	}
@@ -64,20 +64,19 @@ func main() {
 		}
 	}()
 
-	// 3. 建立连接至 Logic 层的 gRPC 客户端 (用于鉴权)
+	// 建立连接至Logic层的gRPC客户端
 	authClient, logicConn, err := common.NewAuthClient(cfg.Logic.GRPCAddr)
 	if err != nil {
 		log.Fatalf("connect logic grpc server failed:%s", err.Error())
 	}
 	defer logicConn.Close()
 
-	// 4. 组装全局依赖上下文
 	serverCtx := &connect.ServerContext{
 		Registry:   registry,
 		AuthClient: authClient,
 	}
 
-	// 5. 启动接收Task层调用的gRPC server端
+	// 启动接收Task层调用的gRPC server端
 	go func() {
 		lis, err := net.Listen("tcp", connectConfig.ConnectGRPCAddr)
 		if err != nil {
@@ -92,7 +91,7 @@ func main() {
 		}
 	}()
 
-	// 6. 启动对外的 HTTP/WebSocket 服务
+	// 启动对外的 HTTP/WebSocket 服务
 	go func() {
 		http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 			connect.ServeWS(serverCtx, w, r)
@@ -103,7 +102,6 @@ func main() {
 		}
 	}()
 
-	// 7. 阻塞并实现优雅退出
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
