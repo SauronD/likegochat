@@ -80,23 +80,23 @@ func main() {
 	go func() {
 		lis, err := net.Listen("tcp", connectConfig.ConnectGRPCAddr)
 		if err != nil {
-			log.Fatalf("gRPC 端口监听失败: %v", err)
+			log.Fatalf("gRPC端口监听失败: %v", err)
 		}
 		grpcServer := grpc.NewServer()
 		connectpb.RegisterConnectServiceServer(grpcServer, &connect.GrpcServer{})
 
-		log.Printf("Connect 层内部 gRPC 服务已启动，监听 %s", connectConfig.ConnectGRPCAddr)
+		log.Printf("Connect层内部gRPC服务已启动，监听 %s", connectConfig.ConnectGRPCAddr)
 		if err := grpcServer.Serve(lis); err != nil {
 			log.Fatalf("gRPC 服务运行失败: %v", err)
 		}
 	}()
 
-	// 启动对外的 HTTP/WebSocket 服务
+	// 启动对外的HTTP/WebSocket服务
 	go func() {
 		http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 			connect.ServeWS(serverCtx, w, r)
 		})
-		log.Printf("Connect 层外部 WebSocket 服务已启动，监听 %s", connectConfig.ConnectHTTPAddr)
+		log.Printf("Connect层外部WebSocket服务已启动，监听 %s", connectConfig.ConnectHTTPAddr)
 		if err := http.ListenAndServe(connectConfig.ConnectHTTPAddr, nil); err != nil {
 			log.Fatalf("HTTP 服务运行失败: %v", err)
 		}
@@ -107,5 +107,5 @@ func main() {
 	<-quit
 
 	log.Println("收到退出信号，节点正在关闭...")
-	// 此处后续可补充针对已建立 WebSocket 的清理和断开逻辑
+	// 此处后续可补充针对已建立WebSocket的清理和断开逻辑
 }
