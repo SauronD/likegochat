@@ -186,7 +186,7 @@ func (c *ChatConsumer) handleSmallGroupMessage(ctx context.Context, gm *chatpb.G
 	if err != nil {
 		errMsg := err.Error()
 
-		// 物理防线 A：绝对匹配丢弃信号，直接中断协程内存生命周期
+		//绝对匹配丢弃信号，直接中断协程内存生命周期
 		if errMsg == "group has no members" || errMsg == "group has no online users" {
 			return nil
 		}
@@ -203,22 +203,21 @@ func (c *ChatConsumer) handleSmallGroupMessage(ctx context.Context, gm *chatpb.G
 			})
 
 			if rpcErr != nil {
-				return rpcErr // 网络断开或 Logic 内部报错，向上阻断
+				return rpcErr
 			}
-			// 内存态类型断言：将 interface{} 还原为真实的 Protobuf 结构体指针
+
 			reply := v.(*chatpb.GroupMembersReply)
 
 			if len(reply.GroupMembers) == 0 {
-				return nil // Logic 确认 MySQL 物理磁盘中该群已空，丢弃
+				return nil
 			}
 
-			// 物理防线 C：使用回源拿到的真实 UID，调用独立函数重新进行 MGET 路由寻址
 			nodeTargetMap, err = c.getOnlineRoutingMap(ctx, reply.GroupMembers)
 			if err != nil {
 				return err
 			}
 		} else {
-			// 未知错误（如 Redis 物理机宕机引发的 EOF 错误）
+			// 未知错误
 			return err
 		}
 	}
@@ -333,10 +332,9 @@ func (c *ChatConsumer) handleRoomBroadcast(ctx context.Context, gm *chatpb.RoomM
 	sem := make(chan struct{}, 100)
 
 	for _, sid := range nodeIDs {
-		// 修正 2：在循环体内进行显式的值拷贝，切断闭包内存共享地址
+
 		targetSid := sid
 
-		// 修正 1：在启动协程前获取信号量，严格控制在内存中存活的 Goroutine 数量
 		select {
 		case sem <- struct{}{}:
 		case <-gctx.Done():
@@ -347,10 +345,10 @@ func (c *ChatConsumer) handleRoomBroadcast(ctx context.Context, gm *chatpb.RoomM
 			// 协程退出时释放令牌
 			defer func() { <-sem }()
 
-			// 使用拷贝后的 targetSid，确保物理指向正确
+			// 使用拷贝后的targetSid，确保物理指向正确
 			client, err := c.ClientPool.GetClient(targetSid)
 			if err != nil {
-				// 获取不到客户端不应该阻断大群的广播，记录日志并返回 nil
+				// 获取不到客户端不应该阻断大群的广播，记录日志并返回nil
 				log.Printf("get client fail sid=%s err=%v", targetSid, err)
 				return nil
 			}
@@ -447,7 +445,6 @@ func (c *ChatConsumer) loadGroupOnlineMemberIDs(ctx context.Context, groupID int
 		return nil, errors.New("group has no online users")
 	}
 
-	// 绝对物理分层：将组装好的 UID 切片直接压入独立函数的执行栈
 	return c.getOnlineRoutingMap(ctx, userIDs)
 }
 
