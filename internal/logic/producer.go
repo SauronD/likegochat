@@ -4,7 +4,7 @@ import (
 	"github.com/IBM/sarama"
 )
 
-// InitProducer 初始化 Kafka 同步生产者
+// InitProducer 初始化Kafka同步生产者
 func InitProducer(brokers []string, verson string) (sarama.SyncProducer, error) {
 	config := sarama.NewConfig()
 	config.Producer.Return.Successes = true // 同步生产者必须设置为true
