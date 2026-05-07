@@ -86,7 +86,7 @@ func ZapGrpcLogger() grpc.UnaryServerInterceptor {
 		duration := time.Since(startTime)
 		statusCode := status.Code(err)
 
-		// 使用 WithContext 提取 trace_id 打印拦截器日志
+		// 使用WithContext提取trace_id打印拦截器日志
 		reqLogger := WithContext(newCtx)
 
 		if err != nil {

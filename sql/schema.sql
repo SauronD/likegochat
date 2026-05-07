@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS users (
   UNIQUE KEY uk_username (username)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 会话表：实现“单端登录”的核心
+-- 会话表
 -- revoked_at = NULL 表示“当前有效会话”
 CREATE TABLE IF NOT EXISTS user_sessions (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -44,11 +44,11 @@ CREATE TABLE IF NOT EXISTS messages(
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '服务端更新时间',
   PRIMARY KEY (id),
   UNIQUE KEY uk_msg_id (msg_id),
-  -- 客户端重试去重（可选）
+  -- 客户端重试去重
   UNIQUE KEY uk_from_client_msg (from_user_id, to_user_id,client_msg_id),
   KEY idx_to_user_created (to_user_id,created_at,id),
   KEY idx_from_user_created (from_user_id, created_at, id),
-  -- 双人会话查询（不建会话表时常用）  
+  -- 双人会话查询
   KEY idx_pair_created (from_user_id, to_user_id, created_at, id)
 
 )ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT '单人聊天信息表';
@@ -100,7 +100,7 @@ CREATE TABLE IF NOT EXISTS `group_messages`(
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '服务端更新时间',
   PRIMARY KEY (id),
   UNIQUE KEY uk_msg_id (msg_id),
-  -- 客户端重试去重（可选）
+  -- 客户端重试去重
   UNIQUE KEY uk_from_client_msg (from_user_id, group_id,client_msg_id),
   KEY idx_from_user_created (from_user_id, created_at, id),
   KEY idx_group_created (group_id, created_at, id)
