@@ -89,6 +89,7 @@ CREATE TABLE IF NOT EXISTS `group_members`(
 -- 群组聊天信息表
 CREATE TABLE IF NOT EXISTS `group_messages`(
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '数据库自增主键',
+  -- 离线消息拉取，由客户端上传其每个group的最后一条持久化消息msg_id
   msg_id BIGINT NOT NULL COMMENT '消息ID,服务器端接收时产生',
   client_msg_id BIGINT NOT NULL COMMENT '客户端发送消息ID',
   from_user_id BIGINT NOT NULL COMMENT '发送方用户ID',
@@ -103,5 +104,7 @@ CREATE TABLE IF NOT EXISTS `group_messages`(
   -- 客户端重试去重
   UNIQUE KEY uk_from_client_msg (from_user_id, group_id,client_msg_id),
   KEY idx_from_user_created (from_user_id, created_at, id),
-  KEY idx_group_created (group_id, created_at, id)
+  KEY idx_group_created (group_id, created_at, id),
+  -- 拉取离线群组消息的索引:
+  KEY idx_group_msgid (group_id,msg_id)
 )ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT '群组聊天消息表';
