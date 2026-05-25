@@ -92,7 +92,7 @@ type UserSession struct {
 
 // gorm结构体绑定表的方法：实现TableName()方法
 func (UserSession) TableName() string {
-	return "user_sessions"
+	return "user_profile"
 }
 
 // 返回*gorm.DB
@@ -114,9 +114,9 @@ func OpenMySQL(dsn string) (*gorm.DB, error) {
 		return nil, err
 	}
 
-	// 配置连接池：最大连接数10、空闲连接池连接最大数量5、重新使用连接的最大时间30min
+	// 配置连接池：最大连接数10、空闲连接池连接最大数量10、重新使用连接的最大时间30min
 	sqlDB.SetMaxOpenConns(10)
-	sqlDB.SetMaxIdleConns(5)
+	sqlDB.SetMaxIdleConns(10)
 	sqlDB.SetConnMaxLifetime(30 * time.Minute)
 
 	return db, nil
