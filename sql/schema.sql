@@ -49,7 +49,9 @@ CREATE TABLE IF NOT EXISTS messages(
   KEY idx_to_user_created (to_user_id,created_at,id),
   KEY idx_from_user_created (from_user_id, created_at, id),
   -- 双人会话查询
-  KEY idx_pair_created (from_user_id, to_user_id, created_at, id)
+  KEY idx_pair_created (from_user_id, to_user_id, created_at, id),
+  -- 客户端离线消息拉取
+  KEY idx_to_user_status_msgid(to_user_id, `status`, msg_id)
 
 )ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT '单人聊天信息表';
 
